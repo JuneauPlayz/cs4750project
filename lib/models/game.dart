@@ -1,5 +1,3 @@
-enum GameStatus { completed, playing, wishlist }
-
 class Game {
   final int id;
   final String title;
@@ -7,11 +5,9 @@ class Game {
   final String summary;
   final List<String> genres;
   final String? platform;
-  double? userRating;
-  String? userReview;
-  DateTime? dateCompleted;
-  GameStatus status;
-  bool isTopFive;
+  final double? metacriticScore;
+  final String? released;
+  String? userNotes;
 
   Game({
     required this.id,
@@ -20,11 +16,9 @@ class Game {
     this.summary = '',
     this.genres = const [],
     this.platform,
-    this.userRating,
-    this.userReview,
-    this.dateCompleted,
-    this.status = GameStatus.completed,
-    this.isTopFive = false,
+    this.metacriticScore,
+    this.released,
+    this.userNotes,
   });
 
   factory Game.fromRawgJson(Map<String, dynamic> json) {
@@ -40,6 +34,8 @@ class Game {
       platform: (json['platforms'] as List<dynamic>?)
           ?.map((p) => p['platform']['name'] as String)
           .join(', '),
+      metacriticScore: (json['metacritic'] as num?)?.toDouble(),
+      released: json['released'] as String?,
     );
   }
 
@@ -50,11 +46,9 @@ class Game {
     String? summary,
     List<String>? genres,
     String? platform,
-    double? userRating,
-    String? userReview,
-    DateTime? dateCompleted,
-    GameStatus? status,
-    bool? isTopFive,
+    double? metacriticScore,
+    String? released,
+    String? userNotes,
   }) {
     return Game(
       id: id ?? this.id,
@@ -63,11 +57,9 @@ class Game {
       summary: summary ?? this.summary,
       genres: genres ?? this.genres,
       platform: platform ?? this.platform,
-      userRating: userRating ?? this.userRating,
-      userReview: userReview ?? this.userReview,
-      dateCompleted: dateCompleted ?? this.dateCompleted,
-      status: status ?? this.status,
-      isTopFive: isTopFive ?? this.isTopFive,
+      metacriticScore: metacriticScore ?? this.metacriticScore,
+      released: released ?? this.released,
+      userNotes: userNotes ?? this.userNotes,
     );
   }
 }

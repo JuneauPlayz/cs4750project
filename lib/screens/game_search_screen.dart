@@ -1,8 +1,6 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/game_provider.dart';
-import 'game_detail_screen.dart';
+import '../providers/discovery_provider.dart';
 
 class GameSearchScreen extends StatefulWidget {
   const GameSearchScreen({super.key});
@@ -12,19 +10,10 @@ class GameSearchScreen extends StatefulWidget {
 }
 
 class _GameSearchScreenState extends State<GameSearchScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  Timer? _debounce;
-
-  void _onSearchChanged(String query) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      context.read<GameProvider>().searchGames(query);
-    });
-  }
+  final _searchController = TextEditingController();
 
   @override
   void dispose() {
-    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -39,11 +28,12 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
           controller: _searchController,
           autofocus: true,
           decoration: const InputDecoration(
-            hintText: 'Search for a game...',
+            hintText: 'Search for similar games...',
             border: InputBorder.none,
           ),
-          style: Theme.of(context).textTheme.titleLarge,
-          onChanged: _onSearchChanged,
+          onSubmitted: (query) {
+            context.read<DiscoveryProvider>().searchGames(query);
+          },
         ),
         actions: [
           if (_searchController.text.isNotEmpty)
@@ -51,15 +41,36 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
               icon: const Icon(Icons.clear),
               onPressed: () {
                 _searchController.clear();
-                context.read<GameProvider>().clearSearch();
+                context.read<DiscoveryProvider>().clearSearch();
+                setState(() {});
               },
             ),
         ],
       ),
-      body: Consumer<GameProvider>(
+      body: Consumer<DiscoveryProvider>(
         builder: (context, provider, child) {
           if (provider.isSearching) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          if (provider.searchError != null) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: colorScheme.error),
+                  const SizedBox(height: 16),
+                  Text(provider.searchError!,
+                      style: TextStyle(color: colorScheme.error)),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () =>
+                        provider.searchGames(_searchController.text),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
           }
 
           if (provider.searchResults.isEmpty) {
@@ -77,7 +88,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                   const SizedBox(height: 16),
                   Text(
                     _searchController.text.isEmpty
-                        ? 'Search for your favorite games'
+                        ? 'Find inspiration for your project'
                         : 'No games found',
                     style: TextStyle(color: colorScheme.onSurfaceVariant),
                   ),
@@ -93,30 +104,28 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
               return ListTile(
                 leading: ClipRRect(
                   borderRadius: BorderRadius.circular(4),
-                  child: game.coverUrl.isNotEmpty
-                      ? Image.network(
-                          game.coverUrl,
-                          width: 50,
-                          height: 70,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _buildPlaceholder(),
-                        )
-                      : _buildPlaceholder(),
+                  child: game.coverUrl.isNotEmpty 
+                    ? Image.network(
+                        game.coverUrl,
+                        width: 50,
+                        height: 50,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+                      )
+                    : _buildPlaceholder(),
                 ),
                 title: Text(game.title),
-                subtitle: Text(
-                  game.genres.take(2).join(', '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                subtitle: Text(game.genres.join(', ')),
+                trailing: IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: () {
+                    provider.addSimilarGame(game);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Added ${game.title} to similar games')),
+                    );
+                    Navigator.pop(context);
+                  },
                 ),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => GameDetailScreen(game: game),
-                    ),
-                  );
-                },
               );
             },
           );
@@ -128,7 +137,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
   Widget _buildPlaceholder() {
     return Container(
       width: 50,
-      height: 70,
+      height: 50,
       color: Colors.grey[800],
       child: const Icon(Icons.videogame_asset, size: 20),
     );
