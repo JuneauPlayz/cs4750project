@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/notes_provider.dart';
 import 'providers/project_provider.dart';
 import 'providers/discovery_provider.dart';
@@ -7,7 +8,9 @@ import 'screens/notes_screen.dart';
 import 'screens/game_hub_screen.dart';
 import 'screens/discover_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   runApp(
     MultiProvider(
       providers: [

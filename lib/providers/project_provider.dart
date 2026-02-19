@@ -1,67 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/game_project.dart';
-import '../models/content_entry.dart';
-import '../models/mechanic.dart';
+import '../models/project_folder.dart';
+
+import '../models/folder_entry.dart';
 
 class ProjectProvider extends ChangeNotifier {
   GameProject? _project;
-  final List<ContentEntry> _content = [];
-  final List<Mechanic> _mechanics = [];
+  final List<ProjectFolder> _folders = [];
   final _uuid = const Uuid();
 
   GameProject? get project => _project;
-  List<ContentEntry> get allContent => List.unmodifiable(_content);
-  List<Mechanic> get mechanics => List.unmodifiable(_mechanics);
+  List<ProjectFolder> get folders => List.unmodifiable(_folders);
 
-  void setupProject(String title, {String description = '', List<String> genres = const []}) {
+  void setupProject(String title, {String? imageUrl, List<String> genres = const []}) {
     _project = GameProject(
       title: title,
-      description: description,
+      imageUrl: imageUrl,
       genres: genres,
       createdAt: DateTime.now(),
     );
     notifyListeners();
   }
 
-  // Content Management
-  List<ContentEntry> getContentByType(ContentType type) {
-    return _content.where((c) => c.type == type).toList();
+  void updateTitle(String newTitle) {
+    if (_project != null) {
+      _project = _project!.copyWith(title: newTitle);
+      notifyListeners();
+    }
   }
 
-  void addContent(String name, ContentType type, {String description = '', Map<String, String> attributes = const {}}) {
-    final newContent = ContentEntry(
+  void updateImageUrl(String? url) {
+    if (_project != null) {
+      _project = _project!.copyWith(imageUrl: url);
+      notifyListeners();
+    }
+  }
+
+  // Folder Management
+  void addFolder(String name) {
+    final newFolder = ProjectFolder(
       id: _uuid.v4(),
       name: name,
-      type: type,
-      description: description,
-      attributes: attributes,
       createdAt: DateTime.now(),
     );
-    _content.add(newContent);
+    _folders.add(newFolder);
     notifyListeners();
   }
 
-  void deleteContent(String id) {
-    _content.removeWhere((c) => c.id == id);
+  void deleteFolder(String id) {
+    _folders.removeWhere((f) => f.id == id);
     notifyListeners();
   }
 
-  // Mechanic Management
-  void addMechanic(String title, {String description = '', String? sourceGame}) {
-    final newMechanic = Mechanic(
-      id: _uuid.v4(),
-      title: title,
-      description: description,
-      sourceGameTitle: sourceGame,
-      createdAt: DateTime.now(),
-    );
-    _mechanics.add(newMechanic);
-    notifyListeners();
+  void renameFolder(String id, String newName) {
+    final index = _folders.indexWhere((f) => f.id == id);
+    if (index != -1) {
+      _folders[index].name = newName;
+      notifyListeners();
+    }
   }
 
-  void deleteMechanic(String id) {
-    _mechanics.removeWhere((m) => m.id == id);
-    notifyListeners();
+  // Entry Management
+  void addEntry(String folderId, FolderEntry entry) {
+    final folderIndex = _folders.indexWhere((f) => f.id == folderId);
+    if (folderIndex != -1) {
+      _folders[folderIndex].entries.add(entry);
+      notifyListeners();
+    }
+  }
+
+  void deleteEntry(String folderId, String entryId) {
+    final folderIndex = _folders.indexWhere((f) => f.id == folderId);
+    if (folderIndex != -1) {
+      _folders[folderIndex].entries.removeWhere((e) => e.id == entryId);
+      notifyListeners();
+    }
+  }
+
+  ProjectFolder? getFolderById(String id) {
+    try {
+      return _folders.firstWhere((f) => f.id == id);
+    } catch (_) {
+      return null;
+    }
   }
 }
