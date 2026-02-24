@@ -13,15 +13,13 @@ class FolderDetailScreen extends StatelessWidget {
     return Consumer<ProjectProvider>(
       builder: (context, provider, child) {
         final folder = provider.getFolderById(folderId);
-        
+
         if (folder == null) {
           return const Scaffold(body: Center(child: Text('Folder not found')));
         }
 
         return Scaffold(
-          appBar: AppBar(
-            title: Text(folder.name),
-          ),
+          appBar: AppBar(title: Text(folder.name)),
           body: folder.entries.isEmpty
               ? _buildEmptyState(context)
               : ListView.builder(
@@ -45,12 +43,18 @@ class FolderDetailScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.folder_open, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
+          Icon(
+            Icons.folder_open,
+            size: 64,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           const SizedBox(height: 16),
           const Text('No entries in this folder yet'),
           const SizedBox(height: 8),
-          const Text('Use the import button in the Hub to add resources.', 
-            style: TextStyle(fontSize: 12, color: Colors.grey)),
+          const Text(
+            'Use the import button in the Hub to add resources.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
         ],
       ),
     );
@@ -80,13 +84,17 @@ class _EntryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    entry.resourceType.toUpperCase(),
+                    (entry.detectedEntryTypeName ?? entry.resourceType)
+                        .toUpperCase(),
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -111,8 +119,28 @@ class _EntryCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               entry.description,
-              style: TextStyle(color: colorScheme.onSurfaceVariant, height: 1.4),
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                height: 1.4,
+              ),
             ),
+            if (entry.variableValues.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Variables',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              ...entry.variableValues.entries.map(
+                (variable) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '${variable.key}: ${variable.value}',
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

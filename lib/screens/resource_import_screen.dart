@@ -22,6 +22,7 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
   FolderEntry? _analysisResult;
   bool _isAnalyzing = false;
   String? _selectedFolderId;
+  String? _autoRouteMessage;
   bool _isManualPaste = false;
 
   @override
@@ -31,9 +32,7 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-    );
+    final result = await FilePicker.platform.pickFiles(type: FileType.any);
 
     if (result != null && result.files.single.path != null) {
       final file = File(result.files.single.path!);
@@ -43,16 +42,22 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
         _rawContent = content;
         _isManualPaste = false;
         _analysisResult = null;
+        _selectedFolderId = null;
+        _autoRouteMessage = null;
       });
     }
   }
 
   Future<void> _analyzeResource() async {
-    final contentToAnalyze = _isManualPaste ? _pasteController.text : _rawContent;
-    
+    final contentToAnalyze = _isManualPaste
+        ? _pasteController.text
+        : _rawContent;
+
     if (contentToAnalyze == null || contentToAnalyze.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a file or paste content first')),
+        const SnackBar(
+          content: Text('Please select a file or paste content first'),
+        ),
       );
       return;
     }
@@ -60,13 +65,30 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
     setState(() => _isAnalyzing = true);
     try {
       final parsed = TresParser.parse(contentToAnalyze);
-      final result = await _aiService.analyzeResource(parsed);
-      setState(() => _analysisResult = result);
+      final projectProvider = context.read<ProjectProvider>();
+      final result = await _aiService.analyzeResource(
+        parsed,
+        entryTypes: projectProvider.entryTypes,
+      );
+      final targetFolder = projectProvider.resolveImportFolder(
+        detectedEntryTypeName: result.detectedEntryTypeName,
+        resourceType: result.resourceType,
+      );
+      final routeMessage = result.detectedEntryTypeName != null
+          ? 'Matched entry type "${result.detectedEntryTypeName}"'
+          : targetFolder.name == 'Uncategorized Imports'
+          ? 'No matching entry type detected. Routed to Uncategorized Imports'
+          : 'No entry type match. Routed by resource type to "${targetFolder.name}"';
+      setState(() {
+        _analysisResult = result;
+        _selectedFolderId = targetFolder.id;
+        _autoRouteMessage = routeMessage;
+      });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Analysis failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Analysis failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _isAnalyzing = false);
@@ -76,7 +98,20 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
   void _saveEntry() {
     if (_analysisResult == null || _selectedFolderId == null) return;
 
-    context.read<ProjectProvider>().addEntry(_selectedFolderId!, _analysisResult!);
+    final projectProvider = context.read<ProjectProvider>();
+    final folder = projectProvider.getFolderById(_selectedFolderId!);
+    if (folder == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selected folder no longer exists. Please choose another folder.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    projectProvider.addEntry(folder.id, _analysisResult!);
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Resource imported successfully!')),
@@ -87,11 +122,15 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final folders = context.watch<ProjectProvider>().folders;
+    final selectedFolderStillExists =
+        _selectedFolderId != null &&
+        folders.any((folder) => folder.id == _selectedFolderId);
+    final dropdownInitialValue = selectedFolderStillExists
+        ? _selectedFolderId
+        : null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Import Godot Resource'),
-      ),
+      appBar: AppBar(title: const Text('Import Godot Resource')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -103,7 +142,9 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
                 onPressed: _pickFile,
                 icon: const Icon(Icons.file_open),
                 label: const Text('Select .tres File'),
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(24)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.all(24),
+                ),
               ),
               const SizedBox(height: 16),
               const Center(child: Text('OR')),
@@ -112,7 +153,9 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
                 onPressed: () => setState(() => _isManualPaste = true),
                 icon: const Icon(Icons.paste),
                 label: const Text('Paste .tres Text'),
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(24)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.all(24),
+                ),
               ),
             ] else if (_selectedFile != null)
               Card(
@@ -126,6 +169,8 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
                       _selectedFile = null;
                       _rawContent = null;
                       _analysisResult = null;
+                      _selectedFolderId = null;
+                      _autoRouteMessage = null;
                     }),
                   ),
                 ),
@@ -144,6 +189,8 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
                       _isManualPaste = false;
                       _pasteController.clear();
                       _analysisResult = null;
+                      _selectedFolderId = null;
+                      _autoRouteMessage = null;
                     }),
                   ),
                 ),
@@ -153,19 +200,30 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
             const SizedBox(height: 24),
 
             // 2. Analysis Button
-            if ((_selectedFile != null || (_isManualPaste && _pasteController.text.isNotEmpty)) && _analysisResult == null)
+            if ((_selectedFile != null ||
+                    (_isManualPaste && _pasteController.text.isNotEmpty)) &&
+                _analysisResult == null)
               ElevatedButton.icon(
                 onPressed: _isAnalyzing ? null : _analyzeResource,
                 icon: _isAnalyzing
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.psychology),
-                label: Text(_isAnalyzing ? 'Analyzing with AI...' : 'Analyze with Gemini'),
+                label: Text(
+                  _isAnalyzing ? 'Analyzing with AI...' : 'Analyze with Gemini',
+                ),
               ),
 
             // 3. Analysis Results
             if (_analysisResult != null) ...[
               const Divider(height: 40),
-              Text('Analysis Result', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Analysis Result',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 12),
               Card(
                 color: colorScheme.surfaceContainerLow,
@@ -177,39 +235,81 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
                       Row(
                         children: [
                           Chip(label: Text(_analysisResult!.resourceType)),
+                          if (_analysisResult!.detectedEntryTypeName !=
+                              null) ...[
+                            const SizedBox(width: 8),
+                            Chip(
+                              avatar: const Icon(Icons.category, size: 16),
+                              label: Text(
+                                _analysisResult!.detectedEntryTypeName!,
+                              ),
+                            ),
+                          ],
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _analysisResult!.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      Text(_analysisResult!.description, style: const TextStyle(height: 1.4)),
+                      Text(
+                        _analysisResult!.description,
+                        style: const TextStyle(height: 1.4),
+                      ),
+                      if (_analysisResult!.variableValues.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Extracted Variables',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        ..._analysisResult!.variableValues.entries.map(
+                          (entry) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text('${entry.key}: ${entry.value}'),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              
+              if (_autoRouteMessage != null) ...[
+                Text(
+                  _autoRouteMessage!,
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+
               // Folder Selection
               DropdownButtonFormField<String>(
-                initialValue: _selectedFolderId,
+                key: ValueKey(dropdownInitialValue),
+                initialValue: dropdownInitialValue,
                 decoration: const InputDecoration(
-                  labelText: 'Select Target Folder',
+                  labelText: 'Target Folder (Auto-selected)',
                   border: OutlineInputBorder(),
                 ),
-                items: folders.map((f) => DropdownMenuItem(
-                  value: f.id,
-                  child: Text(f.name),
-                )).toList(),
+                items: folders
+                    .map(
+                      (f) => DropdownMenuItem(value: f.id, child: Text(f.name)),
+                    )
+                    .toList(),
                 onChanged: (val) => setState(() => _selectedFolderId = val),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               ElevatedButton(
                 onPressed: _selectedFolderId == null ? null : _saveEntry,
                 style: ElevatedButton.styleFrom(
@@ -219,7 +319,7 @@ class _ResourceImportScreenState extends State<ResourceImportScreen> {
                 child: const Text('Save to Project'),
               ),
             ],
-            
+
             const SizedBox(height: 40),
           ],
         ),

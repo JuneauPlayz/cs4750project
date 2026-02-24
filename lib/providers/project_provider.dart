@@ -2,18 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/game_project.dart';
 import '../models/project_folder.dart';
-
+import '../models/entry_type.dart';
 import '../models/folder_entry.dart';
 
 class ProjectProvider extends ChangeNotifier {
   GameProject? _project;
   final List<ProjectFolder> _folders = [];
+  final List<EntryTypeDefinition> _entryTypes = [];
   final _uuid = const Uuid();
+  static const _uncategorizedFolderName = 'Uncategorized Imports';
 
   GameProject? get project => _project;
   List<ProjectFolder> get folders => List.unmodifiable(_folders);
+  List<EntryTypeDefinition> get entryTypes => List.unmodifiable(_entryTypes);
 
-  void setupProject(String title, {String? imageUrl, List<String> genres = const []}) {
+  void setupProject(
+    String title, {
+    String? imageUrl,
+    List<String> genres = const [],
+  }) {
     _project = GameProject(
       title: title,
       imageUrl: imageUrl,
@@ -84,5 +91,119 @@ class ProjectProvider extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  void addEntryType(String name, List<EntryTypeVariable> variables) {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError('Entry type name cannot be empty.');
+    }
+
+    final alreadyExists = _entryTypes.any(
+      (type) => type.name.toLowerCase() == trimmedName.toLowerCase(),
+    );
+    if (alreadyExists) {
+      throw ArgumentError('Entry type "$trimmedName" already exists.');
+    }
+
+    final entryType = EntryTypeDefinition(
+      id: _uuid.v4(),
+      name: trimmedName,
+      variables: variables,
+      createdAt: DateTime.now(),
+    );
+    _entryTypes.add(entryType);
+    _getOrCreateFolderForEntryType(entryType);
+    notifyListeners();
+  }
+
+  ProjectFolder resolveImportFolder({
+    String? detectedEntryTypeName,
+    String? resourceType,
+  }) {
+    final detected = _normalizeName(detectedEntryTypeName);
+    if (detected != null) {
+      EntryTypeDefinition? matchedType;
+      for (final entryType in _entryTypes) {
+        if (_normalizeName(entryType.name) == detected) {
+          matchedType = entryType;
+          break;
+        }
+      }
+      if (matchedType != null) {
+        return _getOrCreateFolderForEntryType(
+          matchedType,
+          notifyOnCreate: true,
+        );
+      }
+    }
+
+    final normalizedResourceType = _normalizeName(resourceType);
+    if (normalizedResourceType != null) {
+      for (final folder in _folders) {
+        if (_normalizeName(folder.name) == normalizedResourceType) {
+          return folder;
+        }
+      }
+    }
+
+    return _getOrCreateUncategorizedFolder();
+  }
+
+  EntryTypeDefinition? findEntryTypeByName(String name) {
+    final normalizedName = _normalizeName(name);
+    if (normalizedName == null) return null;
+    try {
+      return _entryTypes.firstWhere(
+        (entryType) => _normalizeName(entryType.name) == normalizedName,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  ProjectFolder _getOrCreateFolderForEntryType(
+    EntryTypeDefinition entryType, {
+    bool notifyOnCreate = false,
+  }) {
+    for (final folder in _folders) {
+      if (folder.entryTypeId == entryType.id) {
+        return folder;
+      }
+    }
+
+    final newFolder = ProjectFolder(
+      id: _uuid.v4(),
+      name: entryType.name,
+      entryTypeId: entryType.id,
+      createdAt: DateTime.now(),
+    );
+    _folders.add(newFolder);
+    if (notifyOnCreate) notifyListeners();
+    return newFolder;
+  }
+
+  ProjectFolder _getOrCreateUncategorizedFolder() {
+    final normalizedTarget = _normalizeName(_uncategorizedFolderName);
+    for (final folder in _folders) {
+      if (_normalizeName(folder.name) == normalizedTarget) {
+        return folder;
+      }
+    }
+
+    final newFolder = ProjectFolder(
+      id: _uuid.v4(),
+      name: _uncategorizedFolderName,
+      createdAt: DateTime.now(),
+    );
+    _folders.add(newFolder);
+    notifyListeners();
+    return newFolder;
+  }
+
+  String? _normalizeName(String? value) {
+    final normalized = value?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) return null;
+    return normalized;
   }
 }
