@@ -7,6 +7,9 @@ class Game {
   final String? platform;
   final double? metacriticScore;
   final String? released;
+  final String? website;
+  final String? metacriticUrl;
+  final String? redditUrl;
   String? userNotes;
 
   Game({
@@ -18,6 +21,9 @@ class Game {
     this.platform,
     this.metacriticScore,
     this.released,
+    this.website,
+    this.metacriticUrl,
+    this.redditUrl,
     this.userNotes,
   });
 
@@ -27,7 +33,8 @@ class Game {
       title: json['name'] as String? ?? 'Unknown',
       coverUrl: json['background_image'] as String? ?? '',
       summary: json['description_raw'] as String? ?? '',
-      genres: (json['genres'] as List<dynamic>?)
+      genres:
+          (json['genres'] as List<dynamic>?)
               ?.map((g) => g['name'] as String)
               .toList() ??
           [],
@@ -36,6 +43,9 @@ class Game {
           .join(', '),
       metacriticScore: (json['metacritic'] as num?)?.toDouble(),
       released: json['released'] as String?,
+      website: json['website'] as String?,
+      metacriticUrl: json['metacritic_url'] as String?,
+      redditUrl: json['reddit_url'] as String?,
     );
   }
 
@@ -48,6 +58,9 @@ class Game {
     String? platform,
     double? metacriticScore,
     String? released,
+    String? website,
+    String? metacriticUrl,
+    String? redditUrl,
     String? userNotes,
   }) {
     return Game(
@@ -59,7 +72,48 @@ class Game {
       platform: platform ?? this.platform,
       metacriticScore: metacriticScore ?? this.metacriticScore,
       released: released ?? this.released,
+      website: website ?? this.website,
+      metacriticUrl: metacriticUrl ?? this.metacriticUrl,
+      redditUrl: redditUrl ?? this.redditUrl,
       userNotes: userNotes ?? this.userNotes,
+    );
+  }
+
+  Map<String, dynamic> toStorageMap() {
+    return {
+      'id': id,
+      'title': title,
+      'coverUrl': coverUrl,
+      'summary': summary,
+      'genres': genres,
+      'platform': platform,
+      'metacriticScore': metacriticScore,
+      'released': released,
+      'website': website,
+      'metacriticUrl': metacriticUrl,
+      'redditUrl': redditUrl,
+      'userNotes': userNotes,
+    };
+  }
+
+  factory Game.fromStorageMap(Map<String, dynamic> map) {
+    return Game(
+      id: (map['id'] as num?)?.toInt() ?? 0,
+      title: map['title'] as String? ?? 'Unknown',
+      coverUrl: map['coverUrl'] as String? ?? '',
+      summary: map['summary'] as String? ?? '',
+      genres:
+          (map['genres'] as List<dynamic>?)
+              ?.map((genre) => genre.toString())
+              .toList() ??
+          const [],
+      platform: map['platform'] as String?,
+      metacriticScore: (map['metacriticScore'] as num?)?.toDouble(),
+      released: map['released'] as String?,
+      website: map['website'] as String?,
+      metacriticUrl: map['metacriticUrl'] as String?,
+      redditUrl: map['redditUrl'] as String?,
+      userNotes: map['userNotes'] as String?,
     );
   }
 }

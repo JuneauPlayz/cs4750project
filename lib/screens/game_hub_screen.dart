@@ -1,13 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
 import '../models/entry_type.dart';
-import '../providers/project_provider.dart';
+import '../providers/discovery_provider.dart';
 import '../providers/notes_provider.dart';
-import 'resource_import_screen.dart';
-import 'folder_detail_screen.dart';
+import '../providers/project_provider.dart';
+import '../widgets/account_menu_button.dart';
 import 'create_entry_type_screen.dart';
+import 'folder_detail_screen.dart';
+import 'resource_import_screen.dart';
 
 class GameHubScreen extends StatefulWidget {
   const GameHubScreen({super.key});
@@ -20,16 +23,19 @@ class _GameHubScreenState extends State<GameHubScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _isEditingTitle = false;
   late TextEditingController _titleController;
+  late TextEditingController _conceptController;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController();
+    _conceptController = TextEditingController();
   }
 
   @override
   void dispose() {
     _titleController.dispose();
+    _conceptController.dispose();
     super.dispose();
   }
 
@@ -94,6 +100,7 @@ class _GameHubScreenState extends State<GameHubScreen> {
             ),
             tooltip: 'Import Godot Resource',
           ),
+          const AccountMenuButton(),
         ],
       ),
       body: Consumer2<ProjectProvider, NotesProvider>(
@@ -110,6 +117,9 @@ class _GameHubScreenState extends State<GameHubScreen> {
 
           if (!_isEditingTitle && _titleController.text != project.title) {
             _titleController.text = project.title;
+          }
+          if (_conceptController.text != project.conceptDescription) {
+            _conceptController.text = project.conceptDescription;
           }
 
           return CustomScrollView(
@@ -221,7 +231,68 @@ class _GameHubScreenState extends State<GameHubScreen> {
 
               const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
-              // 3. Entry Types Section
+              // 3. Game Description Section
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    'Describe your game in a few sentences.',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'We use this description to ask AI for modern comparable games, then build your Discover feed from those references.',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _conceptController,
+                        minLines: 4,
+                        maxLines: 6,
+                        decoration: const InputDecoration(
+                          hintText:
+                              'Example: A third-person roguelite where you rebuild a seaside town between runs and recruit companions.',
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.tonalIcon(
+                        onPressed: () {
+                          projectProvider.updateConceptDescription(
+                            _conceptController.text,
+                          );
+                          context
+                              .read<DiscoveryProvider>()
+                              .fetchRecommendationsForConcept(
+                                _conceptController.text,
+                              );
+                        },
+                        icon: const Icon(Icons.auto_awesome),
+                        label: const Text('Update Discovery Feed'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+              // 4. Entry Types Section
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -290,7 +361,7 @@ class _GameHubScreenState extends State<GameHubScreen> {
                 ),
               ),
 
-              // 4. Folders Section
+              // 5. Folders Section
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -306,7 +377,7 @@ class _GameHubScreenState extends State<GameHubScreen> {
                 ),
               ),
 
-              // 4a. Built-in "Notes" Folder
+              // 5a. Built-in "Notes" Folder
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -1,16 +1,25 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../constants.dart';
 import '../models/game.dart';
+import '../services/game_concept_service.dart';
+import '../services/firestore_user_data_service.dart';
 
 class DiscoveryProvider extends ChangeNotifier {
+  DiscoveryProvider({FirestoreUserDataService? userDataService})
+    : _userDataService = userDataService ?? FirestoreUserDataService();
+
+  final GameConceptService _gameConceptService = GameConceptService();
+  final FirestoreUserDataService _userDataService;
   final List<Game> _similarGames = [];
   List<Game> _searchResults = [];
   List<Game> _recommendations = [];
   bool _isSearching = false;
   bool _isLoadingRecommendations = false;
   String? _searchError;
+  String? _userId;
 
   List<Game> get similarGames => List.unmodifiable(_similarGames);
   List<Game> get searchResults => _searchResults;
@@ -23,12 +32,14 @@ class DiscoveryProvider extends ChangeNotifier {
     if (!_similarGames.any((g) => g.id == game.id)) {
       _similarGames.add(game);
       notifyListeners();
+      unawaited(_persistSimilarGame(game));
     }
   }
 
   void removeSimilarGame(int id) {
     _similarGames.removeWhere((g) => g.id == id);
     notifyListeners();
+    unawaited(_deleteSimilarGame(id));
   }
 
   void updateGameNotes(int id, String notes) {
@@ -36,6 +47,7 @@ class DiscoveryProvider extends ChangeNotifier {
     if (index >= 0) {
       _similarGames[index].userNotes = notes;
       notifyListeners();
+      unawaited(_persistSimilarGame(_similarGames[index]));
     }
   }
 
@@ -88,8 +100,9 @@ class DiscoveryProvider extends ChangeNotifier {
     return null;
   }
 
-  Future<void> fetchRecommendations(List<String> genres) async {
-    if (genres.isEmpty) {
+  Future<void> fetchRecommendationsForConcept(String conceptDescription) async {
+    final trimmedDescription = conceptDescription.trim();
+    if (trimmedDescription.isEmpty) {
       _recommendations = [];
       notifyListeners();
       return;
@@ -99,18 +112,21 @@ class DiscoveryProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Create genre slug list for API call (simplified)
-      final genreSlugs = genres.take(3).map((g) => g.toLowerCase().replaceAll(' ', '-')).join(',');
-      final uri = Uri.parse(
-        '$rawgBaseUrl/games?key=$rawgApiKey&genres=$genreSlugs&ordering=-rating&page_size=10',
+      final suggestedTitles = await _gameConceptService.suggestReferenceGames(
+        trimmedDescription,
       );
-      final response = await http.get(uri);
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final results = data['results'] as List<dynamic>;
-        _recommendations = results.map((r) => Game.fromRawgJson(r)).toList();
+      final candidates = <Game>[];
+      for (final title in suggestedTitles) {
+        final match = await _searchSuggestedGame(title);
+        if (match != null &&
+            !candidates.any((existing) => existing.id == match.id)) {
+          candidates.add(match);
+        }
       }
+
+      candidates.sort((a, b) => _scoreGame(b).compareTo(_scoreGame(a)));
+      _recommendations = candidates.take(10).toList();
     } catch (e) {
       _recommendations = [];
     }
@@ -123,5 +139,108 @@ class DiscoveryProvider extends ChangeNotifier {
     _searchResults = [];
     _searchError = null;
     notifyListeners();
+  }
+
+  Future<void> loadForUser(String userId) async {
+    _userId = userId;
+    _searchResults = [];
+    _recommendations = [];
+    _isSearching = false;
+    _isLoadingRecommendations = false;
+    _searchError = null;
+
+    try {
+      _similarGames
+        ..clear()
+        ..addAll(await _userDataService.loadSimilarGames(userId));
+    } catch (_) {
+      _similarGames.clear();
+    }
+    notifyListeners();
+  }
+
+  Future<void> _persistSimilarGame(Game game) async {
+    final userId = _userId;
+    if (userId == null) return;
+
+    try {
+      await _userDataService.saveSimilarGame(userId, game);
+    } catch (_) {
+      // Keep local state even if the network write fails.
+    }
+  }
+
+  Future<void> _deleteSimilarGame(int gameId) async {
+    final userId = _userId;
+    if (userId == null) return;
+
+    try {
+      await _userDataService.deleteSimilarGame(userId, gameId);
+    } catch (_) {
+      // Ignore remote delete failures for now.
+    }
+  }
+
+  void reset() {
+    _userId = null;
+    _similarGames.clear();
+    _searchResults = [];
+    _recommendations = [];
+    _isSearching = false;
+    _isLoadingRecommendations = false;
+    _searchError = null;
+    notifyListeners();
+  }
+
+  Future<Game?> _searchSuggestedGame(String title) async {
+    final uri = Uri.parse(
+      '$rawgBaseUrl/games?key=$rawgApiKey&search=${Uri.encodeComponent(title)}&page_size=8',
+    );
+    final response = await http.get(uri);
+    if (response.statusCode != 200) return null;
+
+    final data = json.decode(response.body);
+    final results = (data['results'] as List<dynamic>? ?? [])
+        .map((result) => Game.fromRawgJson(result))
+        .toList();
+    if (results.isEmpty) return null;
+
+    results.sort(
+      (a, b) =>
+          _matchTitleScore(b, title).compareTo(_matchTitleScore(a, title)),
+    );
+    return results.first;
+  }
+
+  double _matchTitleScore(Game game, String requestedTitle) {
+    final normalizedTitle = game.title.trim().toLowerCase();
+    final normalizedRequested = requestedTitle.trim().toLowerCase();
+
+    double score = _scoreGame(game);
+    if (normalizedTitle == normalizedRequested) {
+      score += 100;
+    } else if (normalizedTitle.contains(normalizedRequested) ||
+        normalizedRequested.contains(normalizedTitle)) {
+      score += 40;
+    }
+    return score;
+  }
+
+  double _scoreGame(Game game) {
+    double score = 0;
+    final year = int.tryParse(game.released?.split('-').first ?? '');
+    if (year != null) {
+      if (year >= 2016) {
+        score += 35 + (year - 2016).clamp(0, 10);
+      } else {
+        score -= (2016 - year).clamp(0, 30);
+      }
+    }
+
+    if (game.metacriticScore != null) {
+      score += game.metacriticScore! / 4;
+    }
+
+    return score;
   }
 }

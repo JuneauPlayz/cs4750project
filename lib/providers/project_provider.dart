@@ -1,39 +1,51 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/game_project.dart';
 import '../models/project_folder.dart';
 import '../models/entry_type.dart';
 import '../models/folder_entry.dart';
+import '../services/firestore_user_data_service.dart';
 
 class ProjectProvider extends ChangeNotifier {
+  ProjectProvider({FirestoreUserDataService? userDataService})
+    : _userDataService = userDataService ?? FirestoreUserDataService();
+
+  final FirestoreUserDataService _userDataService;
   GameProject? _project;
   final List<ProjectFolder> _folders = [];
   final List<EntryTypeDefinition> _entryTypes = [];
   final _uuid = const Uuid();
+  String? _userId;
   static const _uncategorizedFolderName = 'Uncategorized Imports';
 
   GameProject? get project => _project;
   List<ProjectFolder> get folders => List.unmodifiable(_folders);
   List<EntryTypeDefinition> get entryTypes => List.unmodifiable(_entryTypes);
+  bool get needsOnboarding =>
+      _project == null || _project!.conceptDescription.trim().isEmpty;
 
   void setupProject(
     String title, {
     String? imageUrl,
-    List<String> genres = const [],
+    String conceptDescription = '',
   }) {
     _project = GameProject(
       title: title,
       imageUrl: imageUrl,
-      genres: genres,
+      conceptDescription: conceptDescription,
       createdAt: DateTime.now(),
     );
     notifyListeners();
+    unawaited(_persistProject());
   }
 
   void updateTitle(String newTitle) {
     if (_project != null) {
       _project = _project!.copyWith(title: newTitle);
       notifyListeners();
+      unawaited(_persistProject());
     }
   }
 
@@ -41,7 +53,76 @@ class ProjectProvider extends ChangeNotifier {
     if (_project != null) {
       _project = _project!.copyWith(imageUrl: url);
       notifyListeners();
+      unawaited(_persistProject());
     }
+  }
+
+  void updateConceptDescription(String conceptDescription) {
+    if (_project == null) return;
+    _project = _project!.copyWith(
+      conceptDescription: conceptDescription.trim(),
+    );
+    notifyListeners();
+    unawaited(_persistProject());
+  }
+
+  void saveProjectProfile({
+    required String title,
+    required String conceptDescription,
+    String? imageUrl,
+  }) {
+    final trimmedTitle = title.trim().isEmpty
+        ? 'Untitled Project'
+        : title.trim();
+    final trimmedDescription = conceptDescription.trim();
+
+    if (_project == null) {
+      _project = GameProject(
+        title: trimmedTitle,
+        imageUrl: imageUrl,
+        conceptDescription: trimmedDescription,
+        createdAt: DateTime.now(),
+      );
+    } else {
+      _project = _project!.copyWith(
+        title: trimmedTitle,
+        imageUrl: imageUrl ?? _project!.imageUrl,
+        conceptDescription: trimmedDescription,
+      );
+    }
+
+    notifyListeners();
+    unawaited(_persistProject());
+  }
+
+  Future<void> loadForUser(String userId) async {
+    _userId = userId;
+    try {
+      _project = await _userDataService.loadProject(userId);
+    } catch (_) {
+      _project = null;
+    }
+    notifyListeners();
+  }
+
+  Future<void> _persistProject() async {
+    final userId = _userId;
+    final project = _project;
+    if (userId == null || project == null) return;
+
+    try {
+      await _userDataService.saveProject(userId, project);
+    } catch (_) {
+      // Keep local state even if the network write fails.
+    }
+  }
+
+  void reset() {
+    _userId = null;
+    _project = null;
+    _folders.clear();
+    _entryTypes.clear();
+    notifyListeners();
   }
 
   // Folder Management

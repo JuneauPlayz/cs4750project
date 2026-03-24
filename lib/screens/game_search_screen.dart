@@ -60,8 +60,10 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                 children: [
                   Icon(Icons.error_outline, size: 64, color: colorScheme.error),
                   const SizedBox(height: 16),
-                  Text(provider.searchError!,
-                      style: TextStyle(color: colorScheme.error)),
+                  Text(
+                    provider.searchError!,
+                    style: TextStyle(color: colorScheme.error),
+                  ),
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: () =>
@@ -104,15 +106,16 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
               return ListTile(
                 leading: ClipRRect(
                   borderRadius: BorderRadius.circular(4),
-                  child: game.coverUrl.isNotEmpty 
-                    ? Image.network(
-                        game.coverUrl,
-                        width: 50,
-                        height: 50,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
-                      )
-                    : _buildPlaceholder(),
+                  child: game.coverUrl.isNotEmpty
+                      ? Image.network(
+                          game.coverUrl,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildPlaceholder(),
+                        )
+                      : _buildPlaceholder(),
                 ),
                 title: Text(game.title),
                 subtitle: Text(game.genres.join(', ')),
@@ -121,7 +124,9 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                   onPressed: () {
                     provider.addSimilarGame(game);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Added ${game.title} to similar games')),
+                      SnackBar(
+                        content: Text('Added ${game.title} to similar games'),
+                      ),
                     );
                     Navigator.pop(context);
                   },

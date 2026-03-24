@@ -40,7 +40,9 @@ class TresParser {
       if (line.startsWith('[') && line.endsWith(']')) {
         final header = line.substring(1, line.length - 1);
         if (header.contains('gd_resource') || header == 'resource') {
-          final typeMatch = RegExp(r'script_class="([^"]+)"').firstMatch(header);
+          final typeMatch = RegExp(
+            r'script_class="([^"]+)"',
+          ).firstMatch(header);
           if (typeMatch != null) {
             resourceType = typeMatch.group(1)!;
           }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/notes_provider.dart';
 import '../models/note.dart';
+import '../widgets/account_menu_button.dart';
 import '../widgets/note_card.dart';
 
 class NotesScreen extends StatelessWidget {
@@ -19,6 +21,7 @@ class NotesScreen extends StatelessWidget {
               // Future: Implement search
             },
           ),
+          const AccountMenuButton(),
         ],
       ),
       body: Consumer<NotesProvider>(
@@ -94,9 +97,9 @@ class NotesScreen extends StatelessWidget {
           children: [
             Text(
               note == null ? 'New Idea' : 'Edit Note',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -118,21 +121,24 @@ class NotesScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-            initialValue: selectedTag,
+              initialValue: selectedTag,
               decoration: const InputDecoration(
                 hintText: 'Select Tag (optional)',
                 border: OutlineInputBorder(),
               ),
-              items: ['Mechanic', 'Story', 'Level', 'General']
-                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                  .toList(),
+              items: [
+                'Mechanic',
+                'Story',
+                'Level',
+                'General',
+              ].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
               onChanged: (val) => selectedTag = val,
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
                 if (bodyController.text.trim().isEmpty) return;
-                
+
                 final provider = context.read<NotesProvider>();
                 if (note == null) {
                   provider.addNote(

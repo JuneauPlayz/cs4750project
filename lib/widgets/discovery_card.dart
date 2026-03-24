@@ -6,12 +6,16 @@ class DiscoveryCard extends StatelessWidget {
   final Game game;
   final VoidCallback onTap;
   final bool isCompact;
+  final VoidCallback? onQuickAdd;
+  final bool isQuickAdded;
 
   const DiscoveryCard({
     super.key,
     required this.game,
     required this.onTap,
     this.isCompact = false,
+    this.onQuickAdd,
+    this.isQuickAdded = false,
   });
 
   @override
@@ -45,14 +49,41 @@ class DiscoveryCard extends StatelessWidget {
                       top: 12,
                       right: 12,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: _getMetacriticColor(game.metacriticScore!),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           game.metacriticScore!.toInt().toString(),
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (onQuickAdd != null)
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Material(
+                        color: Colors.black54,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: isQuickAdded ? null : onQuickAdd,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Icon(
+                              isQuickAdded ? Icons.check : Icons.add,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -66,12 +97,17 @@ class DiscoveryCard extends StatelessWidget {
                 children: [
                   Text(
                     game.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     game.genres.join(', '),
-                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
