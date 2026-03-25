@@ -28,13 +28,33 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   bool _hasUnlockedResearchFeed = false;
   bool _hasPendingResearchFeedUnlock = false;
 
+  Future<void> _openRecommendedGamesScreen() async {
+    final completedSelection = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const RecommendedGamesScreen()),
+    );
+
+    if (completedSelection == true &&
+        mounted &&
+        context.read<DiscoveryProvider>().similarGames.isNotEmpty) {
+      setState(() {
+        _hasUnlockedResearchFeed = true;
+        _hasPendingResearchFeedUnlock = false;
+      });
+    }
+  }
+
   @override
   void didUpdateWidget(covariant DiscoverScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final hasSimilarGames = context
-        .read<DiscoveryProvider>()
-        .similarGames
-        .isNotEmpty;
+    final discovery = context.read<DiscoveryProvider>();
+    final hasSimilarGames = discovery.similarGames.isNotEmpty;
+    final hasSavedResearchPool = discovery.hasSavedResearchPool;
+
+    if (hasSavedResearchPool && hasSimilarGames && !_hasUnlockedResearchFeed) {
+      _hasUnlockedResearchFeed = true;
+      _hasPendingResearchFeedUnlock = false;
+    }
 
     if (oldWidget.isActive && !widget.isActive && hasSimilarGames) {
       _hasPendingResearchFeedUnlock = true;
@@ -90,7 +110,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           final concept = project.project?.conceptDescription ?? '';
           final conceptSignature = concept.trim();
           final hasSimilarGames = discovery.similarGames.isNotEmpty;
-          final showResearchFeed = hasSimilarGames && _hasUnlockedResearchFeed;
+          final shouldUseSavedFeed =
+              discovery.hasSavedResearchPool && hasSimilarGames;
+          final showResearchFeed =
+              hasSimilarGames &&
+              (_hasUnlockedResearchFeed || shouldUseSavedFeed);
           final researchFeed = _gameResearchService.buildMixedFeed(
             discovery.similarGames,
           );
@@ -134,12 +158,28 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Keep picking more games if you want. Discover will stay in recommendation mode until you switch to another tab and come back.',
+                                'Keep picking more games if you want. Tap Done whenever you are ready to turn these picks into your research feed.',
                                 style: TextStyle(
                                   color: Theme.of(
                                     context,
                                   ).colorScheme.onSurfaceVariant,
                                   height: 1.35,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: FilledButton(
+                                  onPressed: hasSimilarGames
+                                      ? () {
+                                          setState(() {
+                                            _hasUnlockedResearchFeed = true;
+                                            _hasPendingResearchFeedUnlock =
+                                                false;
+                                          });
+                                        }
+                                      : null,
+                                  child: const Text('Done'),
                                 ),
                               ),
                             ],
@@ -151,12 +191,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 SliverToBoxAdapter(
                   child: _SectionHeader(
                     title: 'Recommended for You',
-                    onAdd: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const GameSearchScreen(),
-                      ),
-                    ),
+                    onAdd: _openRecommendedGamesScreen,
                   ),
                 ),
                 if (discovery.isLoadingRecommendations)
@@ -291,12 +326,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
                     child: FilledButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RecommendedGamesScreen(),
-                        ),
-                      ),
+                      onPressed: _openRecommendedGamesScreen,
                       icon: const Icon(Icons.explore_outlined),
                       label: const Text('Open Recommended For You'),
                     ),

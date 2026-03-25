@@ -340,6 +340,64 @@ class _GameHubScreenState extends State<GameHubScreen> {
                                       .map((variable) => variable.name)
                                       .join(', '),
                                 ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined),
+                                tooltip: 'Edit Entry Type',
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => CreateEntryTypeScreen(
+                                      entryTypeId: entryType.id,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                tooltip: 'Delete Entry Type',
+                                onPressed: () async {
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Delete Entry Type'),
+                                      content: const Text(
+                                        'This will remove the entry type, but keep any existing folder entries by turning that folder into a normal folder.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (confirmed == true && context.mounted) {
+                                    context
+                                        .read<ProjectProvider>()
+                                        .deleteEntryType(entryType.id);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CreateEntryTypeScreen(
+                                entryTypeId: entryType.id,
+                              ),
+                            ),
+                          ),
                         ),
                       );
                     }, childCount: projectProvider.entryTypes.length),

@@ -38,14 +38,14 @@ class ProjectProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
     notifyListeners();
-    unawaited(_persistProject());
+    unawaited(_persistWorkspace());
   }
 
   void updateTitle(String newTitle) {
     if (_project != null) {
       _project = _project!.copyWith(title: newTitle);
       notifyListeners();
-      unawaited(_persistProject());
+      unawaited(_persistWorkspace());
     }
   }
 
@@ -53,7 +53,7 @@ class ProjectProvider extends ChangeNotifier {
     if (_project != null) {
       _project = _project!.copyWith(imageUrl: url);
       notifyListeners();
-      unawaited(_persistProject());
+      unawaited(_persistWorkspace());
     }
   }
 
@@ -63,7 +63,7 @@ class ProjectProvider extends ChangeNotifier {
       conceptDescription: conceptDescription.trim(),
     );
     notifyListeners();
-    unawaited(_persistProject());
+    unawaited(_persistWorkspace());
   }
 
   void saveProjectProfile({
@@ -92,26 +92,39 @@ class ProjectProvider extends ChangeNotifier {
     }
 
     notifyListeners();
-    unawaited(_persistProject());
+    unawaited(_persistWorkspace());
   }
 
   Future<void> loadForUser(String userId) async {
     _userId = userId;
     try {
-      _project = await _userDataService.loadProject(userId);
+      final workspace = await _userDataService.loadProjectWorkspace(userId);
+      _project = workspace.project;
+      _folders
+        ..clear()
+        ..addAll(workspace.folders);
+      _entryTypes
+        ..clear()
+        ..addAll(workspace.entryTypes);
     } catch (_) {
       _project = null;
+      _folders.clear();
+      _entryTypes.clear();
     }
     notifyListeners();
   }
 
-  Future<void> _persistProject() async {
+  Future<void> _persistWorkspace() async {
     final userId = _userId;
-    final project = _project;
-    if (userId == null || project == null) return;
+    if (userId == null) return;
 
     try {
-      await _userDataService.saveProject(userId, project);
+      await _userDataService.saveProjectWorkspace(
+        userId,
+        project: _project,
+        folders: _folders,
+        entryTypes: _entryTypes,
+      );
     } catch (_) {
       // Keep local state even if the network write fails.
     }
@@ -134,11 +147,13 @@ class ProjectProvider extends ChangeNotifier {
     );
     _folders.add(newFolder);
     notifyListeners();
+    unawaited(_persistWorkspace());
   }
 
   void deleteFolder(String id) {
     _folders.removeWhere((f) => f.id == id);
     notifyListeners();
+    unawaited(_persistWorkspace());
   }
 
   void renameFolder(String id, String newName) {
@@ -146,6 +161,7 @@ class ProjectProvider extends ChangeNotifier {
     if (index != -1) {
       _folders[index].name = newName;
       notifyListeners();
+      unawaited(_persistWorkspace());
     }
   }
 
@@ -155,6 +171,7 @@ class ProjectProvider extends ChangeNotifier {
     if (folderIndex != -1) {
       _folders[folderIndex].entries.add(entry);
       notifyListeners();
+      unawaited(_persistWorkspace());
     }
   }
 
@@ -163,12 +180,21 @@ class ProjectProvider extends ChangeNotifier {
     if (folderIndex != -1) {
       _folders[folderIndex].entries.removeWhere((e) => e.id == entryId);
       notifyListeners();
+      unawaited(_persistWorkspace());
     }
   }
 
   ProjectFolder? getFolderById(String id) {
     try {
       return _folders.firstWhere((f) => f.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  EntryTypeDefinition? getEntryTypeById(String id) {
+    try {
+      return _entryTypes.firstWhere((entryType) => entryType.id == id);
     } catch (_) {
       return null;
     }
@@ -196,6 +222,121 @@ class ProjectProvider extends ChangeNotifier {
     _entryTypes.add(entryType);
     _getOrCreateFolderForEntryType(entryType);
     notifyListeners();
+    unawaited(_persistWorkspace());
+  }
+
+  void updateEntryType(
+    String entryTypeId, {
+    required String name,
+    required List<EntryTypeVariable> variables,
+  }) {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError('Entry type name cannot be empty.');
+    }
+
+    final index = _entryTypes.indexWhere(
+      (entryType) => entryType.id == entryTypeId,
+    );
+    if (index == -1) {
+      throw ArgumentError('Entry type not found.');
+    }
+
+    final alreadyExists = _entryTypes.any(
+      (entryType) =>
+          entryType.id != entryTypeId &&
+          entryType.name.toLowerCase() == trimmedName.toLowerCase(),
+    );
+    if (alreadyExists) {
+      throw ArgumentError('Entry type "$trimmedName" already exists.');
+    }
+
+    final previous = _entryTypes[index];
+    _entryTypes[index] = EntryTypeDefinition(
+      id: previous.id,
+      name: trimmedName,
+      variables: variables,
+      createdAt: previous.createdAt,
+    );
+
+    final previousNamesById = {
+      for (final variable in previous.variables) variable.id: variable.name,
+    };
+    for (var folderIndex = 0; folderIndex < _folders.length; folderIndex++) {
+      final folder = _folders[folderIndex];
+      if (folder.entryTypeId != entryTypeId) continue;
+
+      final migratedEntries = folder.entries.map((entry) {
+        final migratedValues = <String, String>{};
+
+        for (final variable in variables) {
+          final oldName = previousNamesById[variable.id];
+          final newName = variable.name;
+
+          if (oldName != null && entry.variableValues.containsKey(oldName)) {
+            migratedValues[newName] = entry.variableValues[oldName]!;
+          } else if (entry.variableValues.containsKey(newName)) {
+            migratedValues[newName] = entry.variableValues[newName]!;
+          }
+        }
+
+        return FolderEntry(
+          id: entry.id,
+          name: entry.name,
+          description: entry.description,
+          sourceEngine: entry.sourceEngine,
+          resourceType: trimmedName,
+          detectedEntryTypeName: trimmedName,
+          variableValues: migratedValues,
+          rawContent: entry.rawContent,
+          createdAt: entry.createdAt,
+        );
+      }).toList();
+
+      _folders[folderIndex] = folder.copyWith(
+        name: trimmedName,
+        entries: migratedEntries,
+      );
+    }
+
+    notifyListeners();
+    unawaited(_persistWorkspace());
+  }
+
+  void deleteEntryType(String entryTypeId) {
+    final index = _entryTypes.indexWhere(
+      (entryType) => entryType.id == entryTypeId,
+    );
+    if (index == -1) return;
+
+    _entryTypes.removeAt(index);
+
+    for (var folderIndex = 0; folderIndex < _folders.length; folderIndex++) {
+      final folder = _folders[folderIndex];
+      if (folder.entryTypeId != entryTypeId) continue;
+
+      final detachedEntries = folder.entries.map((entry) {
+        return FolderEntry(
+          id: entry.id,
+          name: entry.name,
+          description: entry.description,
+          sourceEngine: entry.sourceEngine,
+          resourceType: folder.name,
+          detectedEntryTypeName: null,
+          variableValues: Map<String, String>.from(entry.variableValues),
+          rawContent: entry.rawContent,
+          createdAt: entry.createdAt,
+        );
+      }).toList();
+
+      _folders[folderIndex] = folder.copyWith(
+        clearEntryTypeId: true,
+        entries: detachedEntries,
+      );
+    }
+
+    notifyListeners();
+    unawaited(_persistWorkspace());
   }
 
   ProjectFolder resolveImportFolder({
@@ -260,7 +401,10 @@ class ProjectProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
     _folders.add(newFolder);
-    if (notifyOnCreate) notifyListeners();
+    if (notifyOnCreate) {
+      notifyListeners();
+      unawaited(_persistWorkspace());
+    }
     return newFolder;
   }
 
@@ -279,6 +423,7 @@ class ProjectProvider extends ChangeNotifier {
     );
     _folders.add(newFolder);
     notifyListeners();
+    unawaited(_persistWorkspace());
     return newFolder;
   }
 

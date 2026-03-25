@@ -7,6 +7,42 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:901505798227:android:3f1802d17cc5f1a70d76a6",
+        "android_client_info": {
+          "package_name": "com.cjquan.gamedevlens"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "901505798227-178tnu8c3r3bm7kvc2c9lf48kk8jngv5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4gFSMlGEnxW4WdjOavGOJ840A9MGAy54"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "901505798227-178tnu8c3r3bm7kvc2c9lf48kk8jngv5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "901505798227-ekov2s5989dt9jcohirrcfrs2cnc10r0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.cs4750project"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:901505798227:android:76a11ed9d3768b430d76a6",
         "android_client_info": {
           "package_name": "com.example.cs4750project"

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/folder_entry.dart';
 import '../providers/project_provider.dart';
+import 'create_folder_entry_screen.dart';
 
 class FolderDetailScreen extends StatelessWidget {
   final String folderId;
@@ -18,8 +19,29 @@ class FolderDetailScreen extends StatelessWidget {
           return const Scaffold(body: Center(child: Text('Folder not found')));
         }
 
+        final entryType = folder.entryTypeId == null
+            ? null
+            : provider.getEntryTypeById(folder.entryTypeId!);
+
         return Scaffold(
-          appBar: AppBar(title: Text(folder.name)),
+          appBar: AppBar(
+            title: Text(folder.name),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: entryType == null
+                    ? 'Add Object'
+                    : 'Add ${entryType.name}',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        CreateFolderEntryScreen(folderId: folder.id),
+                  ),
+                ),
+              ),
+            ],
+          ),
           body: folder.entries.isEmpty
               ? _buildEmptyState(context)
               : ListView.builder(
@@ -52,7 +74,7 @@ class FolderDetailScreen extends StatelessWidget {
           const Text('No entries in this folder yet'),
           const SizedBox(height: 8),
           const Text(
-            'Use the import button in the Hub to add resources.',
+            'Add objects manually here or use the import button in the Hub.',
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],

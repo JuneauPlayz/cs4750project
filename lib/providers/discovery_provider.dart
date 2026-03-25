@@ -20,6 +20,7 @@ class DiscoveryProvider extends ChangeNotifier {
   bool _isLoadingRecommendations = false;
   String? _searchError;
   String? _userId;
+  bool _hasSavedResearchPool = false;
 
   List<Game> get similarGames => List.unmodifiable(_similarGames);
   List<Game> get searchResults => _searchResults;
@@ -27,6 +28,7 @@ class DiscoveryProvider extends ChangeNotifier {
   bool get isSearching => _isSearching;
   bool get isLoadingRecommendations => _isLoadingRecommendations;
   String? get searchError => _searchError;
+  bool get hasSavedResearchPool => _hasSavedResearchPool;
 
   void addSimilarGame(Game game) {
     if (!_similarGames.any((g) => g.id == game.id)) {
@@ -38,6 +40,9 @@ class DiscoveryProvider extends ChangeNotifier {
 
   void removeSimilarGame(int id) {
     _similarGames.removeWhere((g) => g.id == id);
+    if (_similarGames.isEmpty) {
+      _hasSavedResearchPool = false;
+    }
     notifyListeners();
     unawaited(_deleteSimilarGame(id));
   }
@@ -153,8 +158,10 @@ class DiscoveryProvider extends ChangeNotifier {
       _similarGames
         ..clear()
         ..addAll(await _userDataService.loadSimilarGames(userId));
+      _hasSavedResearchPool = _similarGames.isNotEmpty;
     } catch (_) {
       _similarGames.clear();
+      _hasSavedResearchPool = false;
     }
     notifyListeners();
   }
@@ -189,6 +196,7 @@ class DiscoveryProvider extends ChangeNotifier {
     _isSearching = false;
     _isLoadingRecommendations = false;
     _searchError = null;
+    _hasSavedResearchPool = false;
     notifyListeners();
   }
 

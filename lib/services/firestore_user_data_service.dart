@@ -2,7 +2,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/game.dart';
 import '../models/game_project.dart';
+import '../models/entry_type.dart';
 import '../models/note.dart';
+import '../models/project_folder.dart';
+
+class StoredProjectWorkspace {
+  const StoredProjectWorkspace({
+    this.project,
+    this.folders = const [],
+    this.entryTypes = const [],
+  });
+
+  final GameProject? project;
+  final List<ProjectFolder> folders;
+  final List<EntryTypeDefinition> entryTypes;
+}
 
 class FirestoreUserDataService {
   FirestoreUserDataService({FirebaseFirestore? firestore})
@@ -29,18 +43,60 @@ class FirestoreUserDataService {
         .collection('similar_games');
   }
 
-  Future<GameProject?> loadProject(String userId) async {
+  Future<StoredProjectWorkspace> loadProjectWorkspace(String userId) async {
     final snapshot = await _projectDoc(userId).get();
-    if (!snapshot.exists) return null;
+    if (!snapshot.exists) {
+      return const StoredProjectWorkspace();
+    }
 
     final data = snapshot.data();
-    if (data == null) return null;
-    return GameProject.fromStorageMap(data);
+    if (data == null) {
+      return const StoredProjectWorkspace();
+    }
+
+    if (data.containsKey('project')) {
+      final projectData = data['project'];
+      final foldersData = data['folders'] as List<dynamic>? ?? const [];
+      final entryTypesData = data['entryTypes'] as List<dynamic>? ?? const [];
+
+      return StoredProjectWorkspace(
+        project: projectData is Map<String, dynamic>
+            ? GameProject.fromStorageMap(projectData)
+            : projectData is Map
+            ? GameProject.fromStorageMap(Map<String, dynamic>.from(projectData))
+            : null,
+        folders: foldersData
+            .map(
+              (folder) => ProjectFolder.fromStorageMap(
+                Map<String, dynamic>.from(folder as Map),
+              ),
+            )
+            .toList(),
+        entryTypes: entryTypesData
+            .map(
+              (entryType) => EntryTypeDefinition.fromStorageMap(
+                Map<String, dynamic>.from(entryType as Map),
+              ),
+            )
+            .toList(),
+      );
+    }
+
+    return StoredProjectWorkspace(project: GameProject.fromStorageMap(data));
   }
 
-  Future<void> saveProject(String userId, GameProject project) async {
+  Future<void> saveProjectWorkspace(
+    String userId, {
+    required GameProject? project,
+    required List<ProjectFolder> folders,
+    required List<EntryTypeDefinition> entryTypes,
+  }) async {
     await _projectDoc(userId).set({
-      ...project.toStorageMap(),
+      'project': project?.toStorageMap(),
+      'folders': folders.map((folder) => folder.toStorageMap()).toList(),
+      'entryTypes': entryTypes
+          .map((entryType) => entryType.toStorageMap())
+          .toList(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

@@ -8,6 +8,19 @@ import 'game_review_screen.dart';
 class RecommendedGamesScreen extends StatelessWidget {
   const RecommendedGamesScreen({super.key});
 
+  void _finishSelection(BuildContext context, DiscoveryProvider discovery) {
+    if (discovery.similarGames.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add at least one similar game before finishing.'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.pop(context, true);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -30,38 +43,72 @@ class RecommendedGamesScreen extends StatelessWidget {
             );
           }
 
-          return ListView.builder(
+          return ListView(
             padding: const EdgeInsets.only(top: 8, bottom: 24),
-            itemCount: discovery.recommendations.length,
-            itemBuilder: (context, index) {
-              final game = discovery.recommendations[index];
-              final isInSimilarGames = discovery.similarGames.any(
-                (existing) => existing.id == game.id,
-              );
-
-              return DiscoveryCard(
-                game: game,
-                onQuickAdd: isInSimilarGames
-                    ? null
-                    : () {
-                        discovery.addSimilarGame(game);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Added ${game.title} to similar games',
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pick the games that feel closest to your project, then tap Done to open your Discover feed.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${discovery.similarGames.length} selected',
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                isQuickAdded: isInSimilarGames,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => GameReviewScreen(game: game),
+                            FilledButton(
+                              onPressed: () =>
+                                  _finishSelection(context, discovery),
+                              child: const Text('Done'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              );
-            },
+              ),
+              ...discovery.recommendations.map((game) {
+                final isInSimilarGames = discovery.similarGames.any(
+                  (existing) => existing.id == game.id,
+                );
+
+                return DiscoveryCard(
+                  game: game,
+                  onQuickAdd: isInSimilarGames
+                      ? null
+                      : () {
+                          discovery.addSimilarGame(game);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Added ${game.title} to similar games',
+                              ),
+                            ),
+                          );
+                        },
+                  isQuickAdded: isInSimilarGames,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => GameReviewScreen(game: game),
+                    ),
+                  ),
+                );
+              }),
+            ],
           );
         },
       ),

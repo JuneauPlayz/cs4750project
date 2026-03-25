@@ -5,7 +5,9 @@ import '../models/entry_type.dart';
 import '../providers/project_provider.dart';
 
 class CreateEntryTypeScreen extends StatefulWidget {
-  const CreateEntryTypeScreen({super.key});
+  const CreateEntryTypeScreen({super.key, this.entryTypeId});
+
+  final String? entryTypeId;
 
   @override
   State<CreateEntryTypeScreen> createState() => _CreateEntryTypeScreenState();
@@ -15,6 +17,36 @@ class _CreateEntryTypeScreenState extends State<CreateEntryTypeScreen> {
   final _uuid = const Uuid();
   final _nameController = TextEditingController();
   final List<_EntryVariableDraft> _variableDrafts = [_EntryVariableDraft()];
+  bool _didLoadInitialValues = false;
+
+  bool get _isEditing => widget.entryTypeId != null;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didLoadInitialValues || !_isEditing) return;
+
+    final entryType = context.read<ProjectProvider>().getEntryTypeById(
+      widget.entryTypeId!,
+    );
+    if (entryType == null) return;
+
+    _didLoadInitialValues = true;
+    _nameController.text = entryType.name;
+    for (final draft in _variableDrafts) {
+      draft.dispose();
+    }
+    _variableDrafts
+      ..clear()
+      ..addAll(
+        entryType.variables.map(
+          (variable) => _EntryVariableDraft.fromEntryTypeVariable(variable),
+        ),
+      );
+    if (_variableDrafts.isEmpty) {
+      _variableDrafts.add(_EntryVariableDraft());
+    }
+  }
 
   @override
   void dispose() {
@@ -54,7 +86,7 @@ class _CreateEntryTypeScreenState extends State<CreateEntryTypeScreen> {
       if (variableName.isEmpty) continue;
       variables.add(
         EntryTypeVariable(
-          id: _uuid.v4(),
+          id: draft.variableId ?? _uuid.v4(),
           name: variableName,
           kind: draft.kind,
           referenceEntryTypeId: draft.kind == EntryVariableKind.entryList
@@ -65,7 +97,15 @@ class _CreateEntryTypeScreenState extends State<CreateEntryTypeScreen> {
     }
 
     try {
-      context.read<ProjectProvider>().addEntryType(typeName, variables);
+      if (_isEditing) {
+        context.read<ProjectProvider>().updateEntryType(
+          widget.entryTypeId!,
+          name: typeName,
+          variables: variables,
+        );
+      } else {
+        context.read<ProjectProvider>().addEntryType(typeName, variables);
+      }
       Navigator.pop(context);
     } catch (error) {
       ScaffoldMessenger.of(
@@ -74,12 +114,49 @@ class _CreateEntryTypeScreenState extends State<CreateEntryTypeScreen> {
     }
   }
 
+  Future<void> _deleteEntryType() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Entry Type'),
+        content: const Text(
+          'This will remove the entry type, but keep any existing folder entries by converting the folder into a normal folder.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    context.read<ProjectProvider>().deleteEntryType(widget.entryTypeId!);
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final entryTypes = context.watch<ProjectProvider>().entryTypes;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Entry Type')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit Entry Type' : 'Create Entry Type'),
+        actions: [
+          if (_isEditing)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _deleteEntryType,
+              tooltip: 'Delete Entry Type',
+            ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -196,7 +273,7 @@ class _CreateEntryTypeScreenState extends State<CreateEntryTypeScreen> {
             const SizedBox(height: 8),
             FilledButton(
               onPressed: _save,
-              child: const Text('Create Entry Type'),
+              child: Text(_isEditing ? 'Save Changes' : 'Create Entry Type'),
             ),
           ],
         ),
@@ -206,6 +283,19 @@ class _CreateEntryTypeScreenState extends State<CreateEntryTypeScreen> {
 }
 
 class _EntryVariableDraft {
+  _EntryVariableDraft({this.variableId});
+
+  factory _EntryVariableDraft.fromEntryTypeVariable(
+    EntryTypeVariable variable,
+  ) {
+    final draft = _EntryVariableDraft(variableId: variable.id);
+    draft.nameController.text = variable.name;
+    draft.kind = variable.kind;
+    draft.referenceEntryTypeId = variable.referenceEntryTypeId;
+    return draft;
+  }
+
+  final String? variableId;
   final TextEditingController nameController = TextEditingController();
   EntryVariableKind kind = EntryVariableKind.text;
   String? referenceEntryTypeId;

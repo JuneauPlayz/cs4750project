@@ -34,4 +34,24 @@ class FolderEntry {
       'createdAt': createdAt.toIso8601String(),
     };
   }
+
+  factory FolderEntry.fromStorageMap(Map<String, dynamic> map) {
+    return FolderEntry(
+      id: map['id'] as String? ?? '',
+      name: map['name'] as String? ?? 'Untitled Entry',
+      description: map['description'] as String? ?? '',
+      sourceEngine: map['sourceEngine'] as String? ?? 'manual',
+      resourceType: map['resourceType'] as String? ?? 'Entry',
+      detectedEntryTypeName: map['detectedEntryTypeName'] as String?,
+      variableValues:
+          (map['variableValues'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, value.toString()),
+          ) ??
+          const {},
+      rawContent: map['rawContent'] as String? ?? '',
+      createdAt:
+          DateTime.tryParse(map['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+    );
+  }
 }
