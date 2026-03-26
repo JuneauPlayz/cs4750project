@@ -11,6 +11,7 @@ import '../widgets/account_menu_button.dart';
 import 'create_entry_type_screen.dart';
 import 'folder_detail_screen.dart';
 import 'resource_import_screen.dart';
+import 'settings_screen.dart';
 
 class GameHubScreen extends StatefulWidget {
   const GameHubScreen({super.key});
@@ -99,6 +100,14 @@ class _GameHubScreenState extends State<GameHubScreen> {
               MaterialPageRoute(builder: (_) => const ResourceImportScreen()),
             ),
             tooltip: 'Import Godot Resource',
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
+            tooltip: 'Settings',
           ),
           const AccountMenuButton(),
         ],
