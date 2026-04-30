@@ -47,6 +47,24 @@ class _GameHubScreenState extends State<GameHubScreen> {
     }
   }
 
+  ImageProvider<Object>? _projectImageProvider(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return null;
+    }
+
+    final normalized = imageUrl.toLowerCase();
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+      return NetworkImage(imageUrl);
+    }
+
+    final file = File(imageUrl);
+    if (!file.existsSync()) {
+      return null;
+    }
+
+    return FileImage(file);
+  }
+
   void _showNewFolderDialog() {
     final controller = TextEditingController();
     showDialog(
@@ -115,6 +133,7 @@ class _GameHubScreenState extends State<GameHubScreen> {
       body: Consumer2<ProjectProvider, NotesProvider>(
         builder: (context, projectProvider, notesProvider, child) {
           final project = projectProvider.project;
+          final projectImageProvider = _projectImageProvider(project?.imageUrl);
 
           // Initialize project if null
           if (project == null) {
@@ -190,14 +209,14 @@ class _GameHubScreenState extends State<GameHubScreen> {
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(16),
-                        image: project.imageUrl != null
+                        image: projectImageProvider != null
                             ? DecorationImage(
-                                image: FileImage(File(project.imageUrl!)),
+                                image: projectImageProvider,
                                 fit: BoxFit.cover,
                               )
                             : null,
                       ),
-                      child: project.imageUrl == null
+                      child: projectImageProvider == null
                           ? Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

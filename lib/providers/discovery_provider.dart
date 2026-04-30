@@ -21,6 +21,8 @@ class DiscoveryProvider extends ChangeNotifier {
   String? _searchError;
   String? _userId;
   bool _hasSavedResearchPool = false;
+  final Map<int, String> _recommendationReasons = {};
+  final Set<int> _dismissedRecommendationIds = {};
 
   List<Game> get similarGames => List.unmodifiable(_similarGames);
   List<Game> get searchResults => _searchResults;
@@ -29,6 +31,7 @@ class DiscoveryProvider extends ChangeNotifier {
   bool get isLoadingRecommendations => _isLoadingRecommendations;
   String? get searchError => _searchError;
   bool get hasSavedResearchPool => _hasSavedResearchPool;
+  String? recommendationReasonFor(int gameId) => _recommendationReasons[gameId];
 
   void addSimilarGame(Game game) {
     if (!_similarGames.any((g) => g.id == game.id)) {
@@ -47,13 +50,47 @@ class DiscoveryProvider extends ChangeNotifier {
     unawaited(_deleteSimilarGame(id));
   }
 
-  void updateGameNotes(int id, String notes) {
-    final index = _similarGames.indexWhere((g) => g.id == id);
+  void updateGameNotes(Game game, String notes) {
+    final index = _similarGames.indexWhere(
+      (existing) => existing.id == game.id,
+    );
+    final updatedGame = game.copyWith(userNotes: notes);
+
     if (index >= 0) {
-      _similarGames[index].userNotes = notes;
-      notifyListeners();
-      unawaited(_persistSimilarGame(_similarGames[index]));
+      _similarGames[index] = _mergeGameDetails(
+        _similarGames[index],
+        updatedGame,
+        notes,
+      );
+    } else {
+      _similarGames.add(updatedGame);
     }
+
+    notifyListeners();
+    unawaited(
+      _persistSimilarGame(index >= 0 ? _similarGames[index] : updatedGame),
+    );
+  }
+
+  Game _mergeGameDetails(Game existing, Game incoming, String notes) {
+    return Game(
+      id: existing.id,
+      title: incoming.title.isNotEmpty ? incoming.title : existing.title,
+      coverUrl: incoming.coverUrl.isNotEmpty
+          ? incoming.coverUrl
+          : existing.coverUrl,
+      summary: incoming.summary.isNotEmpty
+          ? incoming.summary
+          : existing.summary,
+      genres: incoming.genres.isNotEmpty ? incoming.genres : existing.genres,
+      platform: incoming.platform ?? existing.platform,
+      metacriticScore: incoming.metacriticScore ?? existing.metacriticScore,
+      released: incoming.released ?? existing.released,
+      website: incoming.website ?? existing.website,
+      metacriticUrl: incoming.metacriticUrl ?? existing.metacriticUrl,
+      redditUrl: incoming.redditUrl ?? existing.redditUrl,
+      userNotes: notes,
+    );
   }
 
   Future<void> searchGames(String query) async {
@@ -122,18 +159,30 @@ class DiscoveryProvider extends ChangeNotifier {
       );
 
       final candidates = <Game>[];
+      final reasons = <int, String>{};
       for (final title in suggestedTitles) {
         final match = await _searchSuggestedGame(title);
         if (match != null &&
             !candidates.any((existing) => existing.id == match.id)) {
           candidates.add(match);
+          reasons[match.id] = _buildRecommendationReason(
+            game: match,
+            suggestedTitle: title,
+          );
         }
       }
 
       candidates.sort((a, b) => _scoreGame(b).compareTo(_scoreGame(a)));
-      _recommendations = candidates.take(10).toList();
+      _recommendations = candidates
+          .where((game) => !_dismissedRecommendationIds.contains(game.id))
+          .take(10)
+          .toList();
+      _recommendationReasons
+        ..clear()
+        ..addAll(reasons);
     } catch (e) {
       _recommendations = [];
+      _recommendationReasons.clear();
     }
 
     _isLoadingRecommendations = false;
@@ -143,6 +192,12 @@ class DiscoveryProvider extends ChangeNotifier {
   void clearSearch() {
     _searchResults = [];
     _searchError = null;
+    notifyListeners();
+  }
+
+  void dismissRecommendation(int id) {
+    _dismissedRecommendationIds.add(id);
+    _recommendations.removeWhere((game) => game.id == id);
     notifyListeners();
   }
 
@@ -163,6 +218,8 @@ class DiscoveryProvider extends ChangeNotifier {
       _similarGames.clear();
       _hasSavedResearchPool = false;
     }
+    _recommendationReasons.clear();
+    _dismissedRecommendationIds.clear();
     notifyListeners();
   }
 
@@ -197,6 +254,8 @@ class DiscoveryProvider extends ChangeNotifier {
     _isLoadingRecommendations = false;
     _searchError = null;
     _hasSavedResearchPool = false;
+    _recommendationReasons.clear();
+    _dismissedRecommendationIds.clear();
     notifyListeners();
   }
 
@@ -250,5 +309,22 @@ class DiscoveryProvider extends ChangeNotifier {
     }
 
     return score;
+  }
+
+  String _buildRecommendationReason({
+    required Game game,
+    required String suggestedTitle,
+  }) {
+    final sameTitle =
+        game.title.trim().toLowerCase() == suggestedTitle.trim().toLowerCase();
+    final year = game.released?.split('-').first;
+
+    if (sameTitle && year != null) {
+      return 'AI flagged $suggestedTitle as a close reference, and this is the current match from $year.';
+    }
+    if (sameTitle) {
+      return 'AI flagged $suggestedTitle as a close reference for your concept.';
+    }
+    return 'Matches the reference direction of $suggestedTitle and shares a similar design lane.';
   }
 }

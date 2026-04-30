@@ -31,6 +31,7 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
             hintText: 'Search for similar games...',
             border: InputBorder.none,
           ),
+          onChanged: (_) => setState(() {}),
           onSubmitted: (query) {
             context.read<DiscoveryProvider>().searchGames(query);
           },

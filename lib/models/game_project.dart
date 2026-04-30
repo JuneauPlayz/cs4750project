@@ -27,7 +27,7 @@ class GameProject {
   Map<String, dynamic> toStorageMap() {
     return {
       'title': title,
-      'imageUrl': imageUrl,
+      'imageUrl': _persistableImageUrl(imageUrl),
       'conceptDescription': conceptDescription,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -42,5 +42,18 @@ class GameProject {
           DateTime.tryParse(map['createdAt'] as String? ?? '') ??
           DateTime.now(),
     );
+  }
+
+  static String? _persistableImageUrl(String? value) {
+    if (value == null || value.isEmpty) return null;
+
+    final normalized = value.toLowerCase();
+    if (normalized.startsWith('http://') ||
+        normalized.startsWith('https://') ||
+        normalized.startsWith('gs://')) {
+      return value;
+    }
+
+    return null;
   }
 }

@@ -7,9 +7,16 @@ import '../models/folder_entry.dart';
 import '../providers/project_provider.dart';
 
 class CreateFolderEntryScreen extends StatefulWidget {
-  const CreateFolderEntryScreen({super.key, required this.folderId});
+  const CreateFolderEntryScreen({
+    super.key,
+    required this.folderId,
+    this.entryId,
+  });
 
   final String folderId;
+  final String? entryId;
+
+  bool get isEditing => entryId != null;
 
   @override
   State<CreateFolderEntryScreen> createState() =>
@@ -21,6 +28,7 @@ class _CreateFolderEntryScreenState extends State<CreateFolderEntryScreen> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final Map<String, TextEditingController> _variableControllers = {};
+  bool _didLoadInitialValues = false;
 
   @override
   void dispose() {
@@ -37,6 +45,41 @@ class _CreateFolderEntryScreenState extends State<CreateFolderEntryScreen> {
       variableId,
       TextEditingController.new,
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didLoadInitialValues || !widget.isEditing) return;
+
+    final provider = context.read<ProjectProvider>();
+    final folder = provider.getFolderById(widget.folderId);
+    FolderEntry? existingEntry;
+    if (folder != null) {
+      for (final entry in folder.entries) {
+        if (entry.id == widget.entryId) {
+          existingEntry = entry;
+          break;
+        }
+      }
+    }
+    if (existingEntry == null) return;
+
+    _didLoadInitialValues = true;
+    _nameController.text = existingEntry.name;
+    _descriptionController.text = existingEntry.description;
+
+    final entryType = folder?.entryTypeId == null
+        ? null
+        : provider.getEntryTypeById(folder!.entryTypeId!);
+    if (entryType != null) {
+      for (final variable in entryType.variables) {
+        final value = existingEntry.variableValues[variable.name];
+        if (value != null) {
+          _controllerForVariable(variable.id).text = value;
+        }
+      }
+    }
   }
 
   void _save() {
@@ -66,7 +109,7 @@ class _CreateFolderEntryScreenState extends State<CreateFolderEntryScreen> {
     }
 
     final entry = FolderEntry(
-      id: _uuid.v4(),
+      id: widget.entryId ?? _uuid.v4(),
       name: entryName,
       description: _descriptionController.text.trim(),
       sourceEngine: 'manual',
@@ -77,7 +120,11 @@ class _CreateFolderEntryScreenState extends State<CreateFolderEntryScreen> {
       createdAt: DateTime.now(),
     );
 
-    provider.addEntry(folder.id, entry);
+    if (widget.isEditing) {
+      provider.updateEntry(folder.id, entry);
+    } else {
+      provider.addEntry(folder.id, entry);
+    }
     Navigator.pop(context);
   }
 
@@ -96,7 +143,13 @@ class _CreateFolderEntryScreenState extends State<CreateFolderEntryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(entryType == null ? 'Add Object' : 'Add ${entryType.name}'),
+        title: Text(
+          widget.isEditing
+              ? 'Edit ${entryType?.name ?? 'Object'}'
+              : entryType == null
+              ? 'Add Object'
+              : 'Add ${entryType.name}',
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -151,7 +204,7 @@ class _CreateFolderEntryScreenState extends State<CreateFolderEntryScreen> {
           FilledButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.save_outlined),
-            label: const Text('Save Object'),
+            label: Text(widget.isEditing ? 'Save Changes' : 'Save Object'),
           ),
         ],
       ),

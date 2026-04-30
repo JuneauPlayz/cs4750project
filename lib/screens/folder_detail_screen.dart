@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/folder_entry.dart';
 import '../providers/project_provider.dart';
 import 'create_folder_entry_screen.dart';
 
-class FolderDetailScreen extends StatelessWidget {
+class FolderDetailScreen extends StatefulWidget {
+  const FolderDetailScreen({super.key, required this.folderId});
+
   final String folderId;
 
-  const FolderDetailScreen({super.key, required this.folderId});
+  @override
+  State<FolderDetailScreen> createState() => _FolderDetailScreenState();
+}
+
+class _FolderDetailScreenState extends State<FolderDetailScreen> {
+  String _query = '';
 
   @override
   Widget build(BuildContext context) {
     return Consumer<ProjectProvider>(
       builder: (context, provider, child) {
-        final folder = provider.getFolderById(folderId);
+        final folder = provider.getFolderById(widget.folderId);
 
         if (folder == null) {
           return const Scaffold(body: Center(child: Text('Folder not found')));
@@ -22,6 +30,17 @@ class FolderDetailScreen extends StatelessWidget {
         final entryType = folder.entryTypeId == null
             ? null
             : provider.getEntryTypeById(folder.entryTypeId!);
+        final filteredEntries = folder.entries.where((entry) {
+          if (_query.trim().isEmpty) return true;
+          final q = _query.toLowerCase();
+          return entry.name.toLowerCase().contains(q) ||
+              entry.description.toLowerCase().contains(q) ||
+              entry.variableValues.entries.any(
+                (variable) =>
+                    variable.key.toLowerCase().contains(q) ||
+                    variable.value.toLowerCase().contains(q),
+              );
+        }).toList();
 
         return Scaffold(
           appBar: AppBar(
@@ -42,40 +61,78 @@ class FolderDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-          body: folder.entries.isEmpty
-              ? _buildEmptyState(context)
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: folder.entries.length,
-                  itemBuilder: (context, index) {
-                    final entry = folder.entries[index];
-                    return _EntryCard(
-                      entry: entry,
-                      onDelete: () => provider.deleteEntry(folderId, entry.id),
-                    );
-                  },
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: TextField(
+                  onChanged: (value) => setState(() => _query = value),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Search folder objects',
+                  ),
                 ),
+              ),
+              Expanded(
+                child: filteredEntries.isEmpty
+                    ? _buildEmptyState(
+                        context,
+                        hasQuery: _query.trim().isNotEmpty,
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filteredEntries.length,
+                        itemBuilder: (context, index) {
+                          final entry = filteredEntries[index];
+                          return _EntryCard(
+                            entry: entry,
+                            onEdit: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CreateFolderEntryScreen(
+                                  folderId: folder.id,
+                                  entryId: entry.id,
+                                ),
+                              ),
+                            ),
+                            onDelete: () =>
+                                provider.deleteEntry(folder.id, entry.id),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, {required bool hasQuery}) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.folder_open,
+            hasQuery ? Icons.search_off : Icons.folder_open,
             size: 64,
             color: Theme.of(context).colorScheme.outlineVariant,
           ),
           const SizedBox(height: 16),
-          const Text('No entries in this folder yet'),
+          Text(
+            hasQuery
+                ? 'No objects match your search'
+                : 'No entries in this folder yet',
+          ),
           const SizedBox(height: 8),
-          const Text(
-            'Add objects manually here or use the import button in the Hub.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+          Text(
+            hasQuery
+                ? 'Try a different search term.'
+                : 'Add objects manually here or use the import button in the Hub.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -84,10 +141,15 @@ class FolderDetailScreen extends StatelessWidget {
 }
 
 class _EntryCard extends StatelessWidget {
-  final FolderEntry entry;
-  final VoidCallback onDelete;
+  const _EntryCard({
+    required this.entry,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
-  const _EntryCard({required this.entry, required this.onDelete});
+  final FolderEntry entry;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -126,6 +188,13 @@ class _EntryCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  onPressed: onEdit,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
                   icon: const Icon(Icons.delete_outline, size: 20),
                   onPressed: onDelete,
                   padding: EdgeInsets.zero,
@@ -138,14 +207,16 @@ class _EntryCard extends StatelessWidget {
               entry.name,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
-            Text(
-              entry.description,
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
-                height: 1.4,
+            if (entry.description.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                entry.description,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                  height: 1.4,
+                ),
               ),
-            ),
+            ],
             if (entry.variableValues.isNotEmpty) ...[
               const SizedBox(height: 12),
               const Text(

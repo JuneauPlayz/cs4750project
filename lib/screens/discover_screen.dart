@@ -238,6 +238,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                       );
                       return DiscoveryCard(
                         game: game,
+                        supportingText: discovery.recommendationReasonFor(
+                          game.id,
+                        ),
                         onQuickAdd: isInSimilarGames
                             ? null
                             : () {
@@ -250,6 +253,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                                   ),
                                 );
                               },
+                        onDismiss: () =>
+                            discovery.dismissRecommendation(game.id),
                         isQuickAdded: isInSimilarGames,
                         onTap: () => Navigator.push(
                           context,
@@ -274,7 +279,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 220,
+                    height: 236,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -284,6 +289,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                         return DiscoveryCard(
                           game: game,
                           isCompact: true,
+                          onRemove: () => discovery.removeSimilarGame(game.id),
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(

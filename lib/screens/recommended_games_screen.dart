@@ -87,6 +87,7 @@ class RecommendedGamesScreen extends StatelessWidget {
 
                 return DiscoveryCard(
                   game: game,
+                  supportingText: discovery.recommendationReasonFor(game.id),
                   onQuickAdd: isInSimilarGames
                       ? null
                       : () {
@@ -99,6 +100,7 @@ class RecommendedGamesScreen extends StatelessWidget {
                             ),
                           );
                         },
+                  onDismiss: () => discovery.dismissRecommendation(game.id),
                   isQuickAdded: isInSimilarGames,
                   onTap: () => Navigator.push(
                     context,

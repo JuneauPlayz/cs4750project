@@ -6,12 +6,14 @@ class NoteCard extends StatelessWidget {
   final Note note;
   final VoidCallback onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onTogglePin;
 
   const NoteCard({
     super.key,
     required this.note,
     required this.onTap,
     this.onDelete,
+    this.onTogglePin,
   });
 
   @override
@@ -43,17 +45,30 @@ class NoteCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    if (note.title.isNotEmpty)
-                      Expanded(
-                        child: Text(
-                          note.title,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          if (note.isPinned) ...[
+                            Icon(
+                              Icons.push_pin,
+                              size: 16,
+                              color: colorScheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Expanded(
+                            child: Text(
+                              note.title.isEmpty ? 'Untitled Note' : note.title,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                    if (note.tag != null)
+                    ),
+                    if (note.tag != null) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -72,9 +87,22 @@ class NoteCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                    ],
+                    if (onTogglePin != null)
+                      IconButton(
+                        onPressed: onTogglePin,
+                        icon: Icon(
+                          note.isPinned
+                              ? Icons.push_pin
+                              : Icons.push_pin_outlined,
+                          size: 20,
+                        ),
+                        visualDensity: VisualDensity.compact,
+                      ),
                   ],
                 ),
-                if (note.title.isNotEmpty) const SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
                   note.body,
                   maxLines: 3,

@@ -65,10 +65,11 @@ class _GameReviewScreenState extends State<GameReviewScreen> {
   }
 
   void _saveNotes() {
-    context.read<DiscoveryProvider>().updateGameNotes(
-      _fullGame.id,
-      _notesController.text,
-    );
+    final notes = _notesController.text.trim();
+    context.read<DiscoveryProvider>().updateGameNotes(_fullGame, notes);
+    setState(() {
+      _fullGame = _fullGame.copyWith(userNotes: notes);
+    });
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Inspiration notes saved')));

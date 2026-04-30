@@ -7,7 +7,10 @@ class DiscoveryCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isCompact;
   final VoidCallback? onQuickAdd;
+  final VoidCallback? onRemove;
+  final VoidCallback? onDismiss;
   final bool isQuickAdded;
+  final String? supportingText;
 
   const DiscoveryCard({
     super.key,
@@ -15,7 +18,10 @@ class DiscoveryCard extends StatelessWidget {
     required this.onTap,
     this.isCompact = false,
     this.onQuickAdd,
+    this.onRemove,
+    this.onDismiss,
     this.isQuickAdded = false,
+    this.supportingText,
   });
 
   @override
@@ -66,6 +72,27 @@ class DiscoveryCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (onDismiss != null)
+                    Positioned(
+                      bottom: 12,
+                      right: 12,
+                      child: Material(
+                        color: Colors.black54,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: onDismiss,
+                          child: const Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   if (onQuickAdd != null)
                     Positioned(
                       top: 12,
@@ -109,6 +136,19 @@ class DiscoveryCard extends StatelessWidget {
                       fontSize: 12,
                     ),
                   ),
+                  if (supportingText != null &&
+                      supportingText!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      supportingText!,
+                      style: TextStyle(
+                        color: colorScheme.primary,
+                        fontSize: 12,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -138,11 +178,28 @@ class DiscoveryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            game.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  game.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (onRemove != null)
+                IconButton(
+                  onPressed: onRemove,
+                  icon: const Icon(Icons.remove_circle_outline, size: 18),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+            ],
           ),
         ],
       ),

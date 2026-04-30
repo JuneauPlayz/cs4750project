@@ -5,6 +5,7 @@ class Note {
   final DateTime createdAt;
   DateTime updatedAt;
   String? tag;
+  bool isPinned;
 
   Note({
     required this.id,
@@ -13,6 +14,7 @@ class Note {
     required this.createdAt,
     required this.updatedAt,
     this.tag,
+    this.isPinned = false,
   });
 
   Note copyWith({
@@ -20,6 +22,7 @@ class Note {
     String? body,
     DateTime? updatedAt,
     String? tag,
+    bool? isPinned,
   }) {
     return Note(
       id: id,
@@ -28,6 +31,7 @@ class Note {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       tag: tag ?? this.tag,
+      isPinned: isPinned ?? this.isPinned,
     );
   }
 
@@ -38,6 +42,7 @@ class Note {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'tag': tag,
+      'isPinned': isPinned,
     };
   }
 
@@ -50,6 +55,7 @@ class Note {
       createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ?? now,
       updatedAt: DateTime.tryParse(map['updatedAt'] as String? ?? '') ?? now,
       tag: map['tag'] as String?,
+      isPinned: map['isPinned'] as bool? ?? false,
     );
   }
 }

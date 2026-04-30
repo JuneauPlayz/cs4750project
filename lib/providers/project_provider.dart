@@ -184,6 +184,20 @@ class ProjectProvider extends ChangeNotifier {
     }
   }
 
+  void updateEntry(String folderId, FolderEntry updatedEntry) {
+    final folderIndex = _folders.indexWhere((f) => f.id == folderId);
+    if (folderIndex == -1) return;
+
+    final entryIndex = _folders[folderIndex].entries.indexWhere(
+      (entry) => entry.id == updatedEntry.id,
+    );
+    if (entryIndex == -1) return;
+
+    _folders[folderIndex].entries[entryIndex] = updatedEntry;
+    notifyListeners();
+    unawaited(_persistWorkspace());
+  }
+
   ProjectFolder? getFolderById(String id) {
     try {
       return _folders.firstWhere((f) => f.id == id);
