@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../widgets/app_background.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -72,237 +73,266 @@ class _AuthScreenState extends State<AuthScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Consumer<AuthProvider>(
-                builder: (context, authProvider, child) {
-                  final isCreateAccount =
-                      authProvider.mode == AuthMode.createAccount;
+      backgroundColor: Colors.transparent,
+      body: AppBackground(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Consumer<AuthProvider>(
+                  builder: (context, authProvider, child) {
+                    final isCreateAccount =
+                        authProvider.mode == AuthMode.createAccount;
 
-                  return Card(
-                    color: colorScheme.surfaceContainerLow,
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary.withValues(
-                                  alpha: 0.16,
+                    return Card(
+                      color: colorScheme.surfaceContainerLow,
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 58,
+                                    height: 58,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          colorScheme.primary,
+                                          const Color(0xFF14B8A6),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Icon(
+                                      Icons.bolt,
+                                      color: colorScheme.onPrimary,
+                                      size: 30,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'GameDevLens',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .headlineSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                        ),
+                                        Text(
+                                          'Design research workspace',
+                                          style: TextStyle(
+                                            color: colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                isCreateAccount
+                                    ? 'Create an account so we can connect your project data to a backend next.'
+                                    : 'Sign in to continue building and reviewing your game ideas.',
+                                style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant,
+                                  height: 1.4,
                                 ),
-                                borderRadius: BorderRadius.circular(20),
                               ),
-                              child: Icon(
-                                Icons.lock_person_outlined,
-                                color: colorScheme.primary,
-                                size: 30,
+                              const SizedBox(height: 24),
+                              SegmentedButton<AuthMode>(
+                                showSelectedIcon: false,
+                                segments: const [
+                                  ButtonSegment<AuthMode>(
+                                    value: AuthMode.signIn,
+                                    label: Text('Sign In'),
+                                  ),
+                                  ButtonSegment<AuthMode>(
+                                    value: AuthMode.createAccount,
+                                    label: Text('Create Account'),
+                                  ),
+                                ],
+                                selected: {authProvider.mode},
+                                onSelectionChanged: (selection) {
+                                  _onModeChanged(authProvider, selection.first);
+                                },
                               ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              'GameDevLens',
-                              style: Theme.of(context).textTheme.headlineSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              isCreateAccount
-                                  ? 'Create an account so we can connect your project data to a backend next.'
-                                  : 'Sign in to continue building and reviewing your game ideas.',
-                              style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
-                                height: 1.4,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            SegmentedButton<AuthMode>(
-                              showSelectedIcon: false,
-                              segments: const [
-                                ButtonSegment<AuthMode>(
-                                  value: AuthMode.signIn,
-                                  label: Text('Sign In'),
+                              const SizedBox(height: 24),
+                              if (isCreateAccount) ...[
+                                TextFormField(
+                                  controller: _nameController,
+                                  textInputAction: TextInputAction.next,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Name',
+                                    prefixIcon: Icon(Icons.person_outline),
+                                  ),
+                                  validator: (value) {
+                                    if (!isCreateAccount) return null;
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Enter your name.';
+                                    }
+                                    if (value.trim().length < 2) {
+                                      return 'Use at least 2 characters.';
+                                    }
+                                    return null;
+                                  },
                                 ),
-                                ButtonSegment<AuthMode>(
-                                  value: AuthMode.createAccount,
-                                  label: Text('Create Account'),
+                                const SizedBox(height: 12),
+                              ],
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                autofillHints: const [AutofillHints.email],
+                                decoration: const InputDecoration(
+                                  labelText: 'Email',
+                                  prefixIcon: Icon(Icons.mail_outline),
+                                ),
+                                validator: (value) {
+                                  final trimmed = value?.trim() ?? '';
+                                  if (trimmed.isEmpty) {
+                                    return 'Enter your email.';
+                                  }
+                                  if (!trimmed.contains('@') ||
+                                      !trimmed.contains('.')) {
+                                    return 'Enter a valid email.';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: true,
+                                textInputAction: isCreateAccount
+                                    ? TextInputAction.next
+                                    : TextInputAction.done,
+                                autofillHints: const [AutofillHints.password],
+                                decoration: const InputDecoration(
+                                  labelText: 'Password',
+                                  prefixIcon: Icon(Icons.lock_outline),
+                                ),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Enter your password.';
+                                  }
+                                  if (value.length < 8) {
+                                    return 'Use at least 8 characters.';
+                                  }
+                                  return null;
+                                },
+                                onFieldSubmitted: (_) {
+                                  if (!isCreateAccount) {
+                                    _submit(authProvider);
+                                  }
+                                },
+                              ),
+                              if (isCreateAccount) ...[
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  controller: _confirmPasswordController,
+                                  obscureText: true,
+                                  textInputAction: TextInputAction.done,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Confirm Password',
+                                    prefixIcon: Icon(
+                                      Icons.verified_user_outlined,
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (!isCreateAccount) return null;
+                                    if (value == null || value.isEmpty) {
+                                      return 'Confirm your password.';
+                                    }
+                                    if (value != _passwordController.text) {
+                                      return 'Passwords do not match.';
+                                    }
+                                    return null;
+                                  },
+                                  onFieldSubmitted: (_) =>
+                                      _submit(authProvider),
                                 ),
                               ],
-                              selected: {authProvider.mode},
-                              onSelectionChanged: (selection) {
-                                _onModeChanged(authProvider, selection.first);
-                              },
-                            ),
-                            const SizedBox(height: 24),
-                            if (isCreateAccount) ...[
-                              TextFormField(
-                                controller: _nameController,
-                                textInputAction: TextInputAction.next,
-                                decoration: const InputDecoration(
-                                  labelText: 'Name',
-                                  prefixIcon: Icon(Icons.person_outline),
-                                ),
-                                validator: (value) {
-                                  if (!isCreateAccount) return null;
-                                  if (value == null || value.trim().isEmpty) {
-                                    return 'Enter your name.';
-                                  }
-                                  if (value.trim().length < 2) {
-                                    return 'Use at least 2 characters.';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                            TextFormField(
-                              controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                              autofillHints: const [AutofillHints.email],
-                              decoration: const InputDecoration(
-                                labelText: 'Email',
-                                prefixIcon: Icon(Icons.mail_outline),
-                              ),
-                              validator: (value) {
-                                final trimmed = value?.trim() ?? '';
-                                if (trimmed.isEmpty) {
-                                  return 'Enter your email.';
-                                }
-                                if (!trimmed.contains('@') ||
-                                    !trimmed.contains('.')) {
-                                  return 'Enter a valid email.';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _passwordController,
-                              obscureText: true,
-                              textInputAction: isCreateAccount
-                                  ? TextInputAction.next
-                                  : TextInputAction.done,
-                              autofillHints: const [AutofillHints.password],
-                              decoration: const InputDecoration(
-                                labelText: 'Password',
-                                prefixIcon: Icon(Icons.lock_outline),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Enter your password.';
-                                }
-                                if (value.length < 8) {
-                                  return 'Use at least 8 characters.';
-                                }
-                                return null;
-                              },
-                              onFieldSubmitted: (_) {
-                                if (!isCreateAccount) {
-                                  _submit(authProvider);
-                                }
-                              },
-                            ),
-                            if (isCreateAccount) ...[
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _confirmPasswordController,
-                                obscureText: true,
-                                textInputAction: TextInputAction.done,
-                                decoration: const InputDecoration(
-                                  labelText: 'Confirm Password',
-                                  prefixIcon: Icon(
-                                    Icons.verified_user_outlined,
+                              if (authProvider.errorMessage != null) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.errorContainer
+                                        .withValues(alpha: 0.6),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    authProvider.errorMessage!,
+                                    style: TextStyle(
+                                      color: colorScheme.onErrorContainer,
+                                    ),
                                   ),
                                 ),
-                                validator: (value) {
-                                  if (!isCreateAccount) return null;
-                                  if (value == null || value.isEmpty) {
-                                    return 'Confirm your password.';
-                                  }
-                                  if (value != _passwordController.text) {
-                                    return 'Passwords do not match.';
-                                  }
-                                  return null;
-                                },
-                                onFieldSubmitted: (_) => _submit(authProvider),
-                              ),
-                            ],
-                            if (authProvider.errorMessage != null) ...[
-                              const SizedBox(height: 16),
-                              Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.errorContainer.withValues(
-                                    alpha: 0.6,
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Text(
-                                  authProvider.errorMessage!,
-                                  style: TextStyle(
-                                    color: colorScheme.onErrorContainer,
-                                  ),
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 20),
-                            FilledButton(
-                              onPressed: authProvider.isSubmitting
-                                  ? null
-                                  : () => _submit(authProvider),
-                              child: authProvider.isSubmitting
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                              ],
+                              const SizedBox(height: 20),
+                              FilledButton(
+                                onPressed: authProvider.isSubmitting
+                                    ? null
+                                    : () => _submit(authProvider),
+                                child: authProvider.isSubmitting
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Text(
+                                        isCreateAccount
+                                            ? 'Create Account'
+                                            : 'Sign In',
                                       ),
-                                    )
-                                  : Text(
-                                      isCreateAccount
-                                          ? 'Create Account'
-                                          : 'Sign In',
-                                    ),
-                            ),
-                            const SizedBox(height: 12),
-                            OutlinedButton.icon(
-                              onPressed: authProvider.isSubmitting
-                                  ? null
-                                  : () => _submitGoogle(authProvider),
-                              icon: const Icon(Icons.login),
-                              label: const Text('Continue with Google'),
-                            ),
-                            const SizedBox(height: 12),
-                            TextButton(
-                              onPressed: authProvider.isSubmitting
-                                  ? null
-                                  : () => _onModeChanged(
-                                      authProvider,
-                                      isCreateAccount
-                                          ? AuthMode.signIn
-                                          : AuthMode.createAccount,
-                                    ),
-                              child: Text(
-                                isCreateAccount
-                                    ? 'Already have an account? Sign in'
-                                    : 'Need an account? Create one',
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                onPressed: authProvider.isSubmitting
+                                    ? null
+                                    : () => _submitGoogle(authProvider),
+                                icon: const Icon(Icons.login),
+                                label: const Text('Continue with Google'),
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: authProvider.isSubmitting
+                                    ? null
+                                    : () => _onModeChanged(
+                                        authProvider,
+                                        isCreateAccount
+                                            ? AuthMode.signIn
+                                            : AuthMode.createAccount,
+                                      ),
+                                child: Text(
+                                  isCreateAccount
+                                      ? 'Already have an account? Sign in'
+                                      : 'Need an account? Create one',
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ),

@@ -7,6 +7,7 @@ import '../providers/project_provider.dart';
 import '../services/game_research_service.dart';
 import '../services/link_launcher_service.dart';
 import '../widgets/account_menu_button.dart';
+import '../widgets/app_background.dart';
 import '../widgets/discovery_card.dart';
 import 'game_search_screen.dart';
 import 'game_review_screen.dart';
@@ -101,195 +102,163 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Discover'),
         actions: const [AccountMenuButton()],
       ),
-      body: Consumer2<DiscoveryProvider, ProjectProvider>(
-        builder: (context, discovery, project, child) {
-          final concept = project.project?.conceptDescription ?? '';
-          final conceptSignature = concept.trim();
-          final hasSimilarGames = discovery.similarGames.isNotEmpty;
-          final shouldUseSavedFeed =
-              discovery.hasSavedResearchPool && hasSimilarGames;
-          final showResearchFeed =
-              hasSimilarGames &&
-              (_hasUnlockedResearchFeed || shouldUseSavedFeed);
-          final researchFeed = _gameResearchService.buildMixedFeed(
-            discovery.similarGames,
-          );
+      body: AppBackground(
+        child: Consumer2<DiscoveryProvider, ProjectProvider>(
+          builder: (context, discovery, project, child) {
+            final concept = project.project?.conceptDescription ?? '';
+            final conceptSignature = concept.trim();
+            final hasSimilarGames = discovery.similarGames.isNotEmpty;
+            final shouldUseSavedFeed =
+                discovery.hasSavedResearchPool && hasSimilarGames;
+            final showResearchFeed =
+                hasSimilarGames &&
+                (_hasUnlockedResearchFeed || shouldUseSavedFeed);
+            final researchFeed = _gameResearchService.buildMixedFeed(
+              discovery.similarGames,
+            );
 
-          if (conceptSignature.isNotEmpty &&
-              conceptSignature != _lastConceptSignature) {
-            _lastConceptSignature = conceptSignature;
-            _loadRecommendations(conceptSignature);
-          } else if (conceptSignature.isEmpty &&
-              _lastConceptSignature.isNotEmpty) {
-            _lastConceptSignature = '';
-          }
+            if (conceptSignature.isNotEmpty &&
+                conceptSignature != _lastConceptSignature) {
+              _lastConceptSignature = conceptSignature;
+              _loadRecommendations(conceptSignature);
+            } else if (conceptSignature.isEmpty &&
+                _lastConceptSignature.isNotEmpty) {
+              _lastConceptSignature = '';
+            }
 
-          if (!hasSimilarGames && _hasUnlockedResearchFeed) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              setState(() {
-                _hasUnlockedResearchFeed = false;
-                _hasPendingResearchFeedUnlock = false;
+            if (!hasSimilarGames && _hasUnlockedResearchFeed) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() {
+                  _hasUnlockedResearchFeed = false;
+                  _hasPendingResearchFeedUnlock = false;
+                });
               });
-            });
-          }
+            }
 
-          return CustomScrollView(
-            slivers: [
-              if (!showResearchFeed) ...[
-                if (hasSimilarGames)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${discovery.similarGames.length} similar game${discovery.similarGames.length == 1 ? '' : 's'} selected',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Keep picking more games if you want. Tap Done whenever you are ready to turn these picks into your research feed.',
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                  height: 1.35,
+            return CustomScrollView(
+              slivers: [
+                if (!showResearchFeed) ...[
+                  if (hasSimilarGames)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${discovery.similarGames.length} similar game${discovery.similarGames.length == 1 ? '' : 's'} selected',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: FilledButton(
-                                  onPressed: hasSimilarGames
-                                      ? () {
-                                          setState(() {
-                                            _hasUnlockedResearchFeed = true;
-                                            _hasPendingResearchFeedUnlock =
-                                                false;
-                                          });
-                                        }
-                                      : null,
-                                  child: const Text('Done'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                SliverToBoxAdapter(
-                  child: _SectionHeader(
-                    title: 'Recommended for You',
-                    onAdd: _openRecommendedGamesScreen,
-                  ),
-                ),
-                if (discovery.isLoadingRecommendations)
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            children: [
-                              const CircularProgressIndicator(),
-                              const SizedBox(height: 14),
-                              Text(
-                                "We're looking for similar games based on your description...",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                else if (discovery.recommendations.isEmpty)
-                  SliverToBoxAdapter(
-                    child: _EmptyState(
-                      message: conceptSignature.isEmpty
-                          ? 'Describe your game in Game Hub to see recommendations.'
-                          : 'We could not find strong matches yet. Try refining your game description.',
-                    ),
-                  )
-                else
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final game = discovery.recommendations[index];
-                      final isInSimilarGames = discovery.similarGames.any(
-                        (existing) => existing.id == game.id,
-                      );
-                      return DiscoveryCard(
-                        game: game,
-                        supportingText: discovery.recommendationReasonFor(
-                          game.id,
-                        ),
-                        onQuickAdd: isInSimilarGames
-                            ? null
-                            : () {
-                                discovery.addSimilarGame(game);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Added ${game.title} to similar games',
-                                    ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Keep picking more games if you want. Tap Done whenever you are ready to turn these picks into your research feed.',
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    height: 1.35,
                                   ),
-                                );
-                              },
-                        onDismiss: () =>
-                            discovery.dismissRecommendation(game.id),
-                        isQuickAdded: isInSimilarGames,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => GameReviewScreen(game: game),
+                                ),
+                                const SizedBox(height: 12),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: FilledButton(
+                                    onPressed: hasSimilarGames
+                                        ? () {
+                                            setState(() {
+                                              _hasUnlockedResearchFeed = true;
+                                              _hasPendingResearchFeedUnlock =
+                                                  false;
+                                            });
+                                          }
+                                        : null,
+                                    child: const Text('Done'),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      );
-                    }, childCount: discovery.recommendations.length),
-                  ),
-              ] else ...[
-                SliverToBoxAdapter(
-                  child: _SectionHeader(
-                    title: 'My Similar Games',
-                    onAdd: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const GameSearchScreen(),
                       ),
                     ),
+                  SliverToBoxAdapter(
+                    child: _SectionHeader(
+                      title: 'Recommended for You',
+                      onAdd: _openRecommendedGamesScreen,
+                    ),
                   ),
-                ),
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 236,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: discovery.similarGames.length,
-                      itemBuilder: (context, index) {
-                        final game = discovery.similarGames[index];
+                  if (discovery.isLoadingRecommendations)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              children: [
+                                const CircularProgressIndicator(),
+                                const SizedBox(height: 14),
+                                Text(
+                                  "We're looking for similar games based on your description...",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (discovery.recommendations.isEmpty)
+                    SliverToBoxAdapter(
+                      child: _EmptyState(
+                        message: conceptSignature.isEmpty
+                            ? 'Describe your game in Game Hub to see recommendations.'
+                            : 'We could not find strong matches yet. Try refining your game description.',
+                      ),
+                    )
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final game = discovery.recommendations[index];
+                        final isInSimilarGames = discovery.similarGames.any(
+                          (existing) => existing.id == game.id,
+                        );
                         return DiscoveryCard(
                           game: game,
-                          isCompact: true,
-                          onRemove: () => discovery.removeSimilarGame(game.id),
+                          supportingText: discovery.recommendationReasonFor(
+                            game.id,
+                          ),
+                          onQuickAdd: isInSimilarGames
+                              ? null
+                              : () {
+                                  discovery.addSimilarGame(game);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Added ${game.title} to similar games',
+                                      ),
+                                    ),
+                                  );
+                                },
+                          onDismiss: () =>
+                              discovery.dismissRecommendation(game.id),
+                          isQuickAdded: isInSimilarGames,
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -297,53 +266,89 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                             ),
                           ),
                         );
-                      },
+                      }, childCount: discovery.recommendations.length),
                     ),
-                  ),
-                ),
-                if (!showResearchFeed)
-                  const SliverToBoxAdapter(
-                    child: _EmptyState(
-                      message:
-                          'Your similar games are saved. Reopen the Discover tab to turn this page into a mixed research feed.',
-                    ),
-                  )
-                else ...[
-                  const SliverToBoxAdapter(
-                    child: _FeedHeader(title: 'Research Feed'),
-                  ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final link = researchFeed[index];
-                      return _ResearchFeedCard(
-                        link: link,
-                        onOpen: () => _openResearchLink(link.url),
-                        onOpenGame: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => GameReviewScreen(game: link.game),
-                          ),
+                ] else ...[
+                  SliverToBoxAdapter(
+                    child: _SectionHeader(
+                      title: 'My Similar Games',
+                      onAdd: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const GameSearchScreen(),
                         ),
-                      );
-                    }, childCount: researchFeed.length),
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 236,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: discovery.similarGames.length,
+                        itemBuilder: (context, index) {
+                          final game = discovery.similarGames[index];
+                          return DiscoveryCard(
+                            game: game,
+                            isCompact: true,
+                            onRemove: () =>
+                                discovery.removeSimilarGame(game.id),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => GameReviewScreen(game: game),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  if (!showResearchFeed)
+                    const SliverToBoxAdapter(
+                      child: _EmptyState(
+                        message:
+                            'Your similar games are saved. Reopen the Discover tab to turn this page into a mixed research feed.',
+                      ),
+                    )
+                  else ...[
+                    const SliverToBoxAdapter(
+                      child: _FeedHeader(title: 'Research Feed'),
+                    ),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final link = researchFeed[index];
+                        return _ResearchFeedCard(
+                          link: link,
+                          onOpen: () => _openResearchLink(link.url),
+                          onOpenGame: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => GameReviewScreen(game: link.game),
+                            ),
+                          ),
+                        );
+                      }, childCount: researchFeed.length),
+                    ),
+                  ],
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+                      child: FilledButton.icon(
+                        onPressed: _openRecommendedGamesScreen,
+                        icon: const Icon(Icons.explore_outlined),
+                        label: const Text('Open Recommended For You'),
+                      ),
+                    ),
                   ),
                 ],
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
-                    child: FilledButton.icon(
-                      onPressed: _openRecommendedGamesScreen,
-                      icon: const Icon(Icons.explore_outlined),
-                      label: const Text('Open Recommended For You'),
-                    ),
-                  ),
-                ),
-              ],
 
-              const SliverToBoxAdapter(child: SizedBox(height: 50)),
-            ],
-          );
-        },
+                const SliverToBoxAdapter(child: SizedBox(height: 50)),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -364,9 +369,10 @@ class _SectionHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           if (onAdd != null)
             IconButton(
@@ -391,9 +397,10 @@ class _FeedHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
       child: Text(
         title,
-        style: Theme.of(
-          context,
-        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }

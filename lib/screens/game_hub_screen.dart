@@ -8,6 +8,7 @@ import '../providers/discovery_provider.dart';
 import '../providers/notes_provider.dart';
 import '../providers/project_provider.dart';
 import '../widgets/account_menu_button.dart';
+import '../widgets/app_background.dart';
 import 'create_entry_type_screen.dart';
 import 'folder_detail_screen.dart';
 import 'resource_import_screen.dart';
@@ -108,6 +109,7 @@ class _GameHubScreenState extends State<GameHubScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Game Hub'),
         actions: [
@@ -130,459 +132,507 @@ class _GameHubScreenState extends State<GameHubScreen> {
           const AccountMenuButton(),
         ],
       ),
-      body: Consumer2<ProjectProvider, NotesProvider>(
-        builder: (context, projectProvider, notesProvider, child) {
-          final project = projectProvider.project;
-          final projectImageProvider = _projectImageProvider(project?.imageUrl);
+      body: AppBackground(
+        child: Consumer2<ProjectProvider, NotesProvider>(
+          builder: (context, projectProvider, notesProvider, child) {
+            final project = projectProvider.project;
+            final projectImageProvider = _projectImageProvider(
+              project?.imageUrl,
+            );
 
-          // Initialize project if null
-          if (project == null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              projectProvider.setupProject('New Game Project');
-            });
-            return const Center(child: CircularProgressIndicator());
-          }
+            // Initialize project if null
+            if (project == null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                projectProvider.setupProject('New Game Project');
+              });
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (!_isEditingTitle && _titleController.text != project.title) {
-            _titleController.text = project.title;
-          }
-          if (_conceptController.text != project.conceptDescription) {
-            _conceptController.text = project.conceptDescription;
-          }
+            if (!_isEditingTitle && _titleController.text != project.title) {
+              _titleController.text = project.title;
+            }
+            if (_conceptController.text != project.conceptDescription) {
+              _conceptController.text = project.conceptDescription;
+            }
 
-          return CustomScrollView(
-            slivers: [
-              // 1. Editable Title
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                  child: _isEditingTitle
-                      ? TextField(
-                          controller: _titleController,
-                          autofocus: true,
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
+            return CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GestureDetector(
+                            onTap: _pickImage,
+                            child: Container(
+                              height: 188,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerHighest,
+                                image: projectImageProvider != null
+                                    ? DecorationImage(
+                                        image: projectImageProvider,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
+                              ),
+                              child: projectImageProvider == null
+                                  ? Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.add_a_photo_outlined,
+                                          size: 42,
+                                          color: colorScheme.primary,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Add Game Concept Art',
+                                          style: TextStyle(
+                                            color: colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.black.withValues(
+                                                    alpha: 0.50,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          right: 12,
+                                          top: 12,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.52,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                            child: const Icon(
+                                              Icons.edit,
+                                              size: 18,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
                           ),
-                          onSubmitted: (val) {
-                            projectProvider.updateTitle(
-                              val.isNotEmpty ? val : 'Untitled Project',
-                            );
-                            setState(() => _isEditingTitle = false);
-                          },
-                          onTapOutside: (_) {
-                            projectProvider.updateTitle(
-                              _titleController.text.isNotEmpty
-                                  ? _titleController.text
-                                  : 'Untitled Project',
-                            );
-                            setState(() => _isEditingTitle = false);
-                          },
-                        )
-                      : GestureDetector(
-                          onTap: () => setState(() => _isEditingTitle = true),
-                          child: Text(
-                            project.title,
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: colorScheme.onSurface,
-                                ),
+                          Padding(
+                            padding: const EdgeInsets.all(18),
+                            child: _isEditingTitle
+                                ? TextField(
+                                    controller: _titleController,
+                                    autofocus: true,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall
+                                        ?.copyWith(fontWeight: FontWeight.w900),
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                    ),
+                                    onSubmitted: (val) {
+                                      projectProvider.updateTitle(
+                                        val.isNotEmpty
+                                            ? val
+                                            : 'Untitled Project',
+                                      );
+                                      setState(() => _isEditingTitle = false);
+                                    },
+                                    onTapOutside: (_) {
+                                      projectProvider.updateTitle(
+                                        _titleController.text.isNotEmpty
+                                            ? _titleController.text
+                                            : 'Untitled Project',
+                                      );
+                                      setState(() => _isEditingTitle = false);
+                                    },
+                                  )
+                                : GestureDetector(
+                                    onTap: () =>
+                                        setState(() => _isEditingTitle = true),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            project.title,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .headlineSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.edit_outlined,
+                                          color: colorScheme.primary,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+                // 3. Game Description Section
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'Describe your game in a few sentences.',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'We use this description to ask AI for modern comparable games, then build your Discover feed from those references.',
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                            height: 1.4,
                           ),
                         ),
-                ),
-              ),
-
-              // 2. Optional Game Image
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _conceptController,
+                          minLines: 4,
+                          maxLines: 6,
+                          decoration: const InputDecoration(
+                            hintText:
+                                'Example: A third-person roguelite where you rebuild a seaside town between runs and recruit companions.',
+                            alignLabelWithHint: true,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.tonalIcon(
+                          onPressed: () {
+                            projectProvider.updateConceptDescription(
+                              _conceptController.text,
+                            );
+                            context
+                                .read<DiscoveryProvider>()
+                                .fetchRecommendationsForConcept(
+                                  _conceptController.text,
+                                );
+                          },
+                          icon: const Icon(Icons.auto_awesome),
+                          label: const Text('Update Discovery Feed'),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: GestureDetector(
-                    onTap: _pickImage,
-                    child: Container(
-                      height: 180,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16),
-                        image: projectImageProvider != null
-                            ? DecorationImage(
-                                image: projectImageProvider,
-                                fit: BoxFit.cover,
-                              )
-                            : null,
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+                // 4. Entry Types Section
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'Entry Types',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w800,
                       ),
-                      child: projectImageProvider == null
-                          ? Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                    ),
+                  ),
+                ),
+                if (projectProvider.entryTypes.isEmpty)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 6,
+                      ),
+                      child: Text(
+                        'No entry types yet. Create one to power AI auto-sorting.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final entryType = projectProvider.entryTypes[index];
+                        return Card(
+                          elevation: 0,
+                          margin: const EdgeInsets.only(top: 8),
+                          color: colorScheme.surfaceContainerLow,
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.category_outlined,
+                              color: colorScheme.primary,
+                            ),
+                            title: Text(entryType.name),
+                            subtitle: entryType.variables.isEmpty
+                                ? const Text('No variables')
+                                : Text(
+                                    entryType.variables
+                                        .map((variable) => variable.name)
+                                        .join(', '),
+                                  ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  Icons.add_a_photo_outlined,
-                                  size: 40,
-                                  color: colorScheme.outline,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Add Game Concept Art',
-                                  style: TextStyle(color: colorScheme.outline),
-                                ),
-                              ],
-                            )
-                          : Stack(
-                              children: [
-                                Positioned(
-                                  right: 8,
-                                  top: 8,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.black54,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.edit,
-                                      size: 16,
-                                      color: Colors.white,
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  tooltip: 'Edit Entry Type',
+                                  onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CreateEntryTypeScreen(
+                                        entryTypeId: entryType.id,
+                                      ),
                                     ),
                                   ),
                                 ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  tooltip: 'Delete Entry Type',
+                                  onPressed: () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Delete Entry Type'),
+                                        content: const Text(
+                                          'This will remove the entry type, but keep any existing folder entries by turning that folder into a normal folder.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirmed == true && context.mounted) {
+                                      context
+                                          .read<ProjectProvider>()
+                                          .deleteEntryType(entryType.id);
+                                    }
+                                  },
+                                ),
                               ],
                             ),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CreateEntryTypeScreen(
+                                  entryTypeId: entryType.id,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }, childCount: projectProvider.entryTypes.length),
                     ),
                   ),
-                ),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 20)),
-
-              // 3. Game Description Section
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 8,
-                  ),
-                  child: Text(
-                    'Describe your game in a few sentences.',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'We use this description to ask AI for modern comparable games, then build your Discover feed from those references.',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _conceptController,
-                        minLines: 4,
-                        maxLines: 6,
-                        decoration: const InputDecoration(
-                          hintText:
-                              'Example: A third-person roguelite where you rebuild a seaside town between runs and recruit companions.',
-                          alignLabelWithHint: true,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton.tonalIcon(
-                        onPressed: () {
-                          projectProvider.updateConceptDescription(
-                            _conceptController.text,
-                          );
-                          context
-                              .read<DiscoveryProvider>()
-                              .fetchRecommendationsForConcept(
-                                _conceptController.text,
-                              );
-                        },
-                        icon: const Icon(Icons.auto_awesome),
-                        label: const Text('Update Discovery Feed'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 20)),
-
-              // 4. Entry Types Section
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 8,
-                  ),
-                  child: Text(
-                    'Entry Types',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              if (projectProvider.entryTypes.isEmpty)
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                    child: Text(
-                      'No entry types yet. Create one to power AI auto-sorting.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    padding: const EdgeInsets.fromLTRB(24, 14, 24, 8),
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CreateEntryTypeScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.add_chart_outlined),
+                      label: const Text('Add Entry Type'),
                     ),
                   ),
-                )
-              else
+                ),
+
+                // 5. Folders Section
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'Folders',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 5a. Built-in "Notes" Folder
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Card(
+                      elevation: 0,
+                      color: colorScheme.surfaceContainerLow,
+                      child: ListTile(
+                        leading: Icon(Icons.folder, color: colorScheme.primary),
+                        title: const Text(
+                          'Notes',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        trailing: Badge(
+                          label: Text(notesProvider.notes.length.toString()),
+                          backgroundColor: colorScheme.primary,
+                        ),
+                        onTap: () {
+                          // For now, prompt they are managed in the Notes tab
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Quick capture notes are managed in the first tab',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 4b. User folders list
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
-                      final entryType = projectProvider.entryTypes[index];
+                      final folder = projectProvider.folders[index];
+                      EntryTypeDefinition? linkedEntryType;
+                      if (folder.entryTypeId != null) {
+                        for (final entryType in projectProvider.entryTypes) {
+                          if (entryType.id == folder.entryTypeId) {
+                            linkedEntryType = entryType;
+                            break;
+                          }
+                        }
+                      }
                       return Card(
                         elevation: 0,
                         margin: const EdgeInsets.only(top: 8),
                         color: colorScheme.surfaceContainerLow,
                         child: ListTile(
                           leading: Icon(
-                            Icons.category_outlined,
-                            color: colorScheme.primary,
+                            Icons.folder_open,
+                            color: colorScheme.secondary,
                           ),
-                          title: Text(entryType.name),
-                          subtitle: entryType.variables.isEmpty
-                              ? const Text('No variables')
-                              : Text(
-                                  entryType.variables
-                                      .map((variable) => variable.name)
-                                      .join(', '),
-                                ),
+                          title: Text(folder.name),
+                          subtitle: linkedEntryType == null
+                              ? null
+                              : const Text('Managed by Entry Type'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined),
-                                tooltip: 'Edit Entry Type',
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => CreateEntryTypeScreen(
-                                      entryTypeId: entryType.id,
-                                    ),
-                                  ),
+                              if (folder.entries.isNotEmpty)
+                                Badge(
+                                  label: Text(folder.entries.length.toString()),
+                                  backgroundColor: colorScheme.secondary,
                                 ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline),
-                                tooltip: 'Delete Entry Type',
-                                onPressed: () async {
-                                  final confirmed = await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('Delete Entry Type'),
-                                      content: const Text(
-                                        'This will remove the entry type, but keep any existing folder entries by turning that folder into a normal folder.',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, false),
-                                          child: const Text('Cancel'),
-                                        ),
-                                        FilledButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, true),
-                                          child: const Text('Delete'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-
-                                  if (confirmed == true && context.mounted) {
-                                    context
-                                        .read<ProjectProvider>()
-                                        .deleteEntryType(entryType.id);
-                                  }
-                                },
-                              ),
+                              if (linkedEntryType == null)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    size: 20,
+                                  ),
+                                  onPressed: () =>
+                                      projectProvider.deleteFolder(folder.id),
+                                )
+                              else
+                                Icon(
+                                  Icons.link,
+                                  size: 18,
+                                  color: colorScheme.outline,
+                                ),
                             ],
                           ),
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => CreateEntryTypeScreen(
-                                entryTypeId: entryType.id,
-                              ),
+                              builder: (_) =>
+                                  FolderDetailScreen(folderId: folder.id),
                             ),
                           ),
                         ),
                       );
-                    }, childCount: projectProvider.entryTypes.length),
+                    }, childCount: projectProvider.folders.length),
                   ),
                 ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 14, 24, 8),
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CreateEntryTypeScreen(),
-                      ),
-                    ),
-                    icon: const Icon(Icons.add_chart_outlined),
-                    label: const Text('Add Entry Type'),
-                  ),
-                ),
-              ),
 
-              // 5. Folders Section
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 8,
-                  ),
-                  child: Text(
-                    'Folders',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-
-              // 5a. Built-in "Notes" Folder
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Card(
-                    elevation: 0,
-                    color: colorScheme.surfaceContainerLow,
-                    child: ListTile(
-                      leading: Icon(Icons.folder, color: colorScheme.primary),
-                      title: const Text(
-                        'Notes',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      trailing: Badge(
-                        label: Text(notesProvider.notes.length.toString()),
-                        backgroundColor: colorScheme.primary,
-                      ),
-                      onTap: () {
-                        // For now, prompt they are managed in the Notes tab
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Quick capture notes are managed in the first tab',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-
-              // 4b. User folders list
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final folder = projectProvider.folders[index];
-                    EntryTypeDefinition? linkedEntryType;
-                    if (folder.entryTypeId != null) {
-                      for (final entryType in projectProvider.entryTypes) {
-                        if (entryType.id == folder.entryTypeId) {
-                          linkedEntryType = entryType;
-                          break;
-                        }
-                      }
-                    }
-                    return Card(
-                      elevation: 0,
-                      margin: const EdgeInsets.only(top: 8),
-                      color: colorScheme.surfaceContainerLow,
-                      child: ListTile(
-                        leading: Icon(
-                          Icons.folder_open,
-                          color: colorScheme.secondary,
-                        ),
-                        title: Text(folder.name),
-                        subtitle: linkedEntryType == null
-                            ? null
-                            : const Text('Managed by Entry Type'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (folder.entries.isNotEmpty)
-                              Badge(
-                                label: Text(folder.entries.length.toString()),
-                                backgroundColor: colorScheme.secondary,
-                              ),
-                            if (linkedEntryType == null)
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  size: 20,
-                                ),
-                                onPressed: () =>
-                                    projectProvider.deleteFolder(folder.id),
-                              )
-                            else
-                              Icon(
-                                Icons.link,
-                                size: 18,
-                                color: colorScheme.outline,
-                              ),
-                          ],
-                        ),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                FolderDetailScreen(folderId: folder.id),
-                          ),
+                // 5. "+ New Folder" Button
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: OutlinedButton.icon(
+                      onPressed: _showNewFolderDialog,
+                      icon: const Icon(Icons.create_new_folder_outlined),
+                      label: const Text('Add Folder'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                    );
-                  }, childCount: projectProvider.folders.length),
-                ),
-              ),
-
-              // 5. "+ New Folder" Button
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: OutlinedButton.icon(
-                    onPressed: _showNewFolderDialog,
-                    icon: const Icon(Icons.create_new_folder_outlined),
-                    label: const Text('Add Folder'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
                     ),
                   ),
                 ),
-              ),
 
-              const SliverToBoxAdapter(child: SizedBox(height: 80)),
-            ],
-          );
-        },
+                const SliverToBoxAdapter(child: SizedBox(height: 80)),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

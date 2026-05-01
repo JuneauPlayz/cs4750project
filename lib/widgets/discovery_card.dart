@@ -33,7 +33,10 @@ class DiscoveryCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
       child: InkWell(
         onTap: onTap,
         child: Column(
@@ -61,7 +64,7 @@ class DiscoveryCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: _getMetacriticColor(game.metacriticScore!),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           game.metacriticScore!.toInt().toString(),
@@ -125,7 +128,7 @@ class DiscoveryCard extends StatelessWidget {
                   Text(
                     game.title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -145,7 +148,7 @@ class DiscoveryCard extends StatelessWidget {
                         color: colorScheme.primary,
                         fontSize: 12,
                         height: 1.35,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -166,7 +169,7 @@ class DiscoveryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(18),
             child: AspectRatio(
               aspectRatio: 3 / 4,
               child: game.coverUrl.isNotEmpty
@@ -187,7 +190,7 @@ class DiscoveryCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),

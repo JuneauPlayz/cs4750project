@@ -27,18 +27,24 @@ class NoteCard extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        color: Colors.red,
+        decoration: BoxDecoration(
+          color: colorScheme.error,
+          borderRadius: BorderRadius.circular(24),
+        ),
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       onDismissed: (_) => onDelete?.call(),
       child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: colorScheme.outlineVariant),
+        ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(24),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(18.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -76,14 +82,14 @@ class NoteCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: colorScheme.secondaryContainer,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           note.tag!,
                           style: TextStyle(
                             fontSize: 10,
-                            color: colorScheme.onSecondaryContainer,
-                            fontWeight: FontWeight.bold,
+                            color: colorScheme.secondary,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
@@ -109,6 +115,7 @@ class NoteCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
+                    height: 1.35,
                   ),
                 ),
                 const SizedBox(height: 12),
